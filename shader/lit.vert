@@ -16,7 +16,7 @@ layout(location = 1) in vec4 in_normal;
 layout(location = 2) in vec2 in_uv;
 
 
-layout(location = 0) out vec4 normal;
+layout(location = 0) out vec3 normal;
 layout(location = 1) out vec2 uv;
 layout(location = 2) out vec3 view_pos;
 layout(location = 3) out vec3 frag_pos;
@@ -30,7 +30,7 @@ layout(push_constant) uniform indices {
 void main() {
  
     view_pos = vec3(cam_pos);
-    normal = normalize(transpose(inverse(model)) * in_normal);
+    normal = normalize(mat3(transpose(inverse(model))) * -vec3(in_normal));
     uv = in_uv;
     frag_pos = vec3(model * in_pos);
     gl_Position = perspective * view * model * in_pos;

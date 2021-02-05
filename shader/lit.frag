@@ -1,7 +1,7 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(location = 0) in vec4 normal;
+layout(location = 0) in vec3 normal;
 layout(location = 1) in vec2 uv;
 
 layout(location = 2) in vec3 view_pos;
@@ -106,7 +106,6 @@ void main() {
 	mat.albedo = vec3(texture(material_textures[material_ind], uv));
 	vec3 rmao = vec3(texture(material_textures[material_ind+2], uv));
 
-	vec3 flat_normal = normalize(cross(dFdx(vec3(frag_pos)), dFdy(vec3(frag_pos))));
 
 	mat.roughness = rmao.r;
 	mat.metallic = rmao.g;
@@ -127,7 +126,7 @@ void main() {
 		vec3 light_output = vec3(0.0);
 		for(int i = 0; i <  5; i++)
 		{
-			light_output += per_light_calc(dir_light[i], mat, vec3(flat_normal), view_dir, f0);
+			light_output += per_light_calc(dir_light[i], mat, normal, view_dir, f0);
 		}
 		out_color = vec4(light_output, 1.0);
 	}

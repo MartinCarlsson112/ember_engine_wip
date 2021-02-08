@@ -144,9 +144,6 @@
     <ClInclude Include="voxels.h">
       <Filter>Header Files\engine</Filter>
     </ClInclude>
-    <ClInclude Include="components.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="camera_system.h">
       <Filter>Header Files\systems</Filter>
     </ClInclude>
@@ -173,6 +170,27 @@
     </ClInclude>
     <ClInclude Include="skinned_vertex.h">
       <Filter>Header Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="components.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="collision.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="animation.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics_pipeline_settings.h">
+      <Filter>Header Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="descriptor_set_settings.h">
+      <Filter>Header Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="skinned_mesh.h">
+      <Filter>Header Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="animation_system.h">
+      <Filter>Header Files\systems</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -233,10 +251,10 @@
     <ClCompile Include="ofbx.cpp">
       <Filter>Source Files\engine</Filter>
     </ClCompile>
-    <ClCompile Include="raytracing.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="swapchain_command_buffer.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="raytracing.cpp">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
   </ItemGroup>

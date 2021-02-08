@@ -22,15 +22,38 @@ namespace em
 		_mesh.vertex_count = (uint32_t)verts.size();
 	}
 
+	void device::init_buffers(const std::vector<skinned_vertex>& verts, mesh& _mesh) const
+	{
+		buffer_object staging_buffer;
+		VkDeviceSize buffer_size = sizeof(verts[0]) * verts.size();
+		create_buffer(staging_buffer, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		void* data;
+		VK_CHECK_RESULT(vkMapMemory(logical_device, staging_buffer.buffer_memory, 0, buffer_size, 0, &data))
+			memcpy(data, verts.data(), (size_t)buffer_size);
+		vkUnmapMemory(logical_device, staging_buffer.buffer_memory);
+		create_buffer(_mesh.vbo, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR);
+		copy_buffer(_mesh.vbo.buffer, staging_buffer.buffer, buffer_size);
+		destroy_buffer(staging_buffer);
+		_mesh.vertex_count = (uint32_t)verts.size();
+	}
+
+	void device::load_mesh(const std::vector<skinned_vertex>& verts, mesh& _mesh) const
+	{
+		init_buffers(verts, _mesh);
+	}
+
 	void device::load_mesh(const std::vector<vertex>& verts, mesh& _mesh) const
 	{
 		init_buffers(verts, _mesh);
 	}
 
+
+	
+
 	void device::load_image(char* data, int width, int height, image_object& io, const image_options& options) const
 	{
 		buffer_object temp_buffer;
-		VkDeviceSize imageSize = width * height * 4;
+		VkDeviceSize imageSize = uint64_t(width) * uint64_t(height) * 4;
 		create_buffer(temp_buffer, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
 		void* temp_data;
@@ -494,7 +517,7 @@ namespace em
 		VK_CHECK_RESULT(vkCreateDevice(gpu, &device_info, nullptr, &logical_device))
 	
 		vkGetDeviceQueue(logical_device, indices.graphics_family.value(), 0, &graphics_queue);
-		vkGetDeviceQueue(logical_device, indices.present_family.value(), 0, &presentQueue);
+		vkGetDeviceQueue(logical_device, indices.present_family.value(), 0, &present_queue);
 	}
 
 	bool device::is_device_suitable(const VkPhysicalDevice& device, const VkSurfaceKHR& surface, queue_family_indices* out_indices, swapchain_support_details* details)
@@ -534,11 +557,13 @@ namespace em
 		{
 			for (uint32_t j = 0; j < extension_count; j++)
 			{
+#pragma warning(push)
+#pragma warning(disable:6385)
 				if (strcmp(device_extensions[i], available[j].extensionName) == 0)
 				{
 					break;
 				}
-
+#pragma warning(pop)
 				if (j == extension_count - 1)
 				{
 					missing_extension = true;

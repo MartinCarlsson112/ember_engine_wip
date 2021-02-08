@@ -10,7 +10,7 @@ typedef size_t size_type;
 struct component_info
 {
 	size_type id;
-	size_type typeSize;
+	size_type type_size;
 };
 
 inline size_type componentIdGen = 0;
@@ -89,9 +89,9 @@ constexpr size_type NOT_INIT = UINT64_MAX;
 
 struct entity
 {
-	constexpr entity() : id(0), _groupId(0) {}
-	explicit entity(uint64_t id) : id(id), _groupId(0) {}
-	entity(uint32_t index, uint32_t version) : id((uint64_t)version << 32 | index), _groupId(0) {}
+	constexpr entity() : id(0), group_id(0) {}
+	explicit entity(uint64_t id) : id(id), group_id(0) {}
+	entity(uint32_t index, uint32_t version) : id((uint64_t)version << 32 | index), group_id(0) {}
 
 	uint32_t index() const { return id & 0xffffffffUL; }
 	uint32_t version() const { return id >> 32; }
@@ -102,20 +102,20 @@ struct entity
 		id = (uint64_t)version << 32 | index();
 	}
 	uint64_t id;
-	uint16_t _groupId;
+	uint16_t group_id;
 };
 struct sparse_entity_array
 {
-	constexpr sparse_entity_array() : entityToIndex(nullptr), _size(0), _allocated(0) {}
+	constexpr sparse_entity_array() : entity_to_index(nullptr), _size(0), _allocated(0) {}
 
-	uint32_t* entityToIndex;
+	uint32_t* entity_to_index;
 	size_type _size;
 	size_type _allocated;
 
-	uint32_t& operator[](size_type i) const { return entityToIndex[i]; }
-	uint32_t& operator[](const uint32_t& i) const { return entityToIndex[i]; }
+	uint32_t& operator[](size_type i) const { return entity_to_index[i]; }
+	uint32_t& operator[](const uint32_t& i) const { return entity_to_index[i]; }
 
-	void push_back(const uint32_t entityIndex)
+	void push_back(const uint32_t entity_index)
 	{
 		if (_allocated == _size)
 		{
@@ -124,23 +124,23 @@ struct sparse_entity_array
 
 			if (temp)
 			{
-				if (entityToIndex) {
-					memcpy(temp, entityToIndex, _allocated * sizeof(uint32_t));
-					free(entityToIndex);
+				if (entity_to_index) {
+					memcpy(temp, entity_to_index, _allocated * sizeof(uint32_t));
+					free(entity_to_index);
 				}
-				entityToIndex = temp;
+				entity_to_index = temp;
 				_allocated = newSize;
 			}
 			assert(temp != nullptr);
 		}
-		entityToIndex[_size] = entityIndex;
+		entity_to_index[_size] = entity_index;
 		_size++;
 	}
 
 	void dispose()
 	{
-		free(entityToIndex);
-		entityToIndex = nullptr;
+		free(entity_to_index);
+		entity_to_index = nullptr;
 		_allocated = 0;
 		_size = 0;
 	}
@@ -148,11 +148,11 @@ struct sparse_entity_array
 
 struct entity_free_list
 {
-	constexpr entity_free_list() : entities(nullptr), _size(0), _allocated(0), _frontIndex(0) {}
+	constexpr entity_free_list() : entities(nullptr), _size(0), _allocated(0), _front_index(0) {}
 	entity* entities;
 	size_type _size;
 	size_type _allocated;
-	size_type _frontIndex;
+	size_type _front_index;
 
 	void push(const entity& e)
 	{
@@ -161,14 +161,14 @@ struct entity_free_list
 			//todo: there is probably some more efficient strategy here. 
 				//potentially we end up repeatedly moving the array every time we pop and push, which may or may not be efficient depending on the size of the list
 				//this would only happen in some specific situation ex. when the count of elements swaps between _allocated-1 and _allocated
-		if (_allocated == _size - _frontIndex)
+		if (_allocated == _size - _front_index)
 		{
 			size_type count = _size;
-			for (size_type i = _frontIndex; i < count; i++) {
-				entities[i - _frontIndex] = entities[i];
+			for (size_type i = _front_index; i < count; i++) {
+				entities[i - _front_index] = entities[i];
 			}
-			_size -= _frontIndex;
-			_frontIndex = 0;
+			_size -= _front_index;
+			_front_index = 0;
 		}
 		else if (_allocated == _size)
 		{
@@ -193,13 +193,13 @@ struct entity_free_list
 
 	entity& pop()
 	{
-		_frontIndex++;
-		return entities[_frontIndex - 1];
+		_front_index++;
+		return entities[_front_index - 1];
 	}
 
 	bool empty() const
 	{
-		return _size - _frontIndex == 0;
+		return _size - _front_index == 0;
 	}
 
 	void dispose()
@@ -208,7 +208,7 @@ struct entity_free_list
 		entities = nullptr;
 		_allocated = 0;
 		_size = 0;
-		_frontIndex = 0;
+		_front_index = 0;
 	}
 
 };
@@ -231,8 +231,8 @@ struct dense_entity_array
 		if (_allocated == _size)
 		{
 
-			size_type newSize = (_allocated == 0 ? 1 : (size_type)ceil((double)_allocated * GROWTH_FACTOR));
-			entity* temp = (entity*)calloc(newSize, sizeof(entity));
+			size_type new_size = (_allocated == 0 ? 1 : (size_type)ceil((double)_allocated * GROWTH_FACTOR));
+			entity* temp = (entity*)calloc(new_size, sizeof(entity));
 
 			if (temp)
 			{
@@ -242,7 +242,7 @@ struct dense_entity_array
 					free(entities);
 				}
 				entities = temp;
-				_allocated = newSize;
+				_allocated = new_size;
 			}
 			assert(temp != nullptr);
 		}
@@ -283,20 +283,20 @@ struct entity_manager
 		return dense[sparse[e.index()]].is_active(e);
 	}
 
-	entity create_entity(uint16_t _groupId)
+	entity create_entity(uint16_t group_id)
 	{
-		if (freeList.empty())
+		if (free_list.empty())
 		{
 			uint32_t index = counter;
 			counter++;
 			entity e = entity(index, 0);
-			e._groupId = _groupId;
+			e.group_id = group_id;
 			dense.push_back(e);
 			sparse.push_back((uint32_t)(dense.size() - 1));
 			return e;
 		}
 
-		entity e = freeList.pop();
+		entity e = free_list.pop();
 		dense.push_back(e);
 		sparse[e.index()] = (uint32_t)(dense.size());
 		return e;
@@ -309,7 +309,7 @@ struct entity_manager
 		sparse[last] = sparse[e.index()];
 		sparse[e.index()] = 0;
 		e.increment_version();
-		freeList.push(e);
+		free_list.push(e);
 		dense.pop_back();
 	}
 
@@ -323,13 +323,13 @@ struct entity_manager
 	{
 		sparse.dispose();
 		dense.dispose();
-		freeList.dispose();
+		free_list.dispose();
 	}
 
 	uint32_t counter;
 	sparse_entity_array sparse;
 	dense_entity_array dense;
-	entity_free_list freeList;
+	entity_free_list free_list;
 };
 
 struct group_offset_array
@@ -356,7 +356,7 @@ struct group_offset_array
 		size_type* temp = (size_type*)calloc(newsize, sizeof(size_type));
 		if (temp)
 		{
-			memset(temp, (int)NOT_INIT, newsize * sizeof(size_type));
+			memset(temp, NOT_INIT, newsize * sizeof(size_type));
 			if (offsets != nullptr)
 			{
 				memcpy(temp, offsets, _size * sizeof(size_type));
@@ -495,33 +495,30 @@ struct component_free_list
 
 struct component_array
 {
-	component_array(const size_type typeSize) : _data(nullptr), _size(0), _allocated(0), _typeSize(typeSize) {}
-	component_array() : _data(nullptr), _size(0), _allocated(0), _typeSize(0) { }
-
 	char* _data;
 	size_type _size;
 	size_type _allocated;
-	size_type _typeSize;
-	component_free_list freeList;
+	size_type _type_size;
+	component_free_list free_list;
 
 	size_type get_or_create_chunk(const size_type size)
 	{
-		if (!freeList.empty())
+		if (!free_list.empty())
 		{
 			//iterate free list and check if there exists a hole which we can use
-			size_type count = freeList._size;
+			size_type count = free_list._size;
 			for (size_type i = 0; i < count; i++)
 			{
-				if (freeList[i].size >= size)
+				if (free_list[i].size >= size)
 				{
 					//remove this from the free chunk
-					size_type start = freeList[i].start;
-					size_type extraSize = freeList[i].size - size;
-					freeList.remove_at(i);
-					if (extraSize != 0)
+					size_type start = free_list[i].start;
+					size_type extra_size = free_list[i].size - size;
+					free_list.remove_at(i);
+					if (extra_size != 0)
 					{
 						//make a new free zone with the remainder
-						return_chunk(start + (size * _typeSize), extraSize);
+						return_chunk(start + (size * _type_size), extra_size);
 					}
 					return start;
 				}
@@ -529,17 +526,17 @@ struct component_array
 		}
 		else if (!(_size + size < _allocated))
 		{
-			size_type newSize = _size + size;
-			char* temp = (char*)calloc(newSize, _typeSize);
+			size_type new_size = _size + size;
+			char* temp = (char*)calloc(new_size, _type_size);
 
 			if (temp)
 			{
 				if (_data != nullptr) {
-					memcpy(temp, _data, _allocated * _typeSize);
+					memcpy(temp, _data, _allocated * _type_size);
 					free(_data);
 				}
 				_data = temp;
-				_allocated = newSize;
+				_allocated = new_size;
 			}
 			assert(temp != nullptr);
 		}
@@ -551,17 +548,17 @@ struct component_array
 
 	void return_chunk(const size_type start, const size_type size)
 	{
-		freeList.push(component_free_list_pair{ start, size });
+		free_list.push(component_free_list_pair{ start, size });
 	}
 
 	void dispose()
 	{
-		freeList.dispose();
+		free_list.dispose();
 		free(_data);
 		_data = nullptr;
 		_size = 0;
 		_allocated = 0;
-		_typeSize = 0;
+		_type_size = 0;
 	}
 
 };
@@ -572,23 +569,21 @@ struct group
 	group(const group_offset_pair_array& offsets, size_type groupSize, size_type groupId)
 	{
 		_size = groupSize;
-		_groupId = groupId;
+		group_id = groupId;
 		const size_type size = offsets.size();
 		_nComponents = size;
-		groupOffsets = (group_offset_array*)calloc(1, sizeof(group_offset_array));
+		group_offsets = (group_offset_array*)calloc(1, sizeof(group_offset_array));
 		for (int i = 0; i < size; i++)
 		{
-			if (!(offsets[i].componentId < groupOffsets->size()))
+			assert(group_offsets != nullptr);
+			if (!(offsets[i].componentId < group_offsets->size()))
 			{
-				groupOffsets->resize(offsets[i].componentId + 1U);
+				group_offsets->resize(offsets[i].componentId + 1U);
 			}
-			groupOffsets->operator[](offsets[i].componentId) = offsets[i].offset;
+			group_offsets->operator[](offsets[i].componentId) = offsets[i].offset;
 		}
 
 		em = (entity_manager*)calloc(1, sizeof(entity_manager));
-
-
-
 	}
 
 
@@ -609,7 +604,7 @@ struct group
 	entity create_entity()
 	{
 		assert(em->counter < _size);
-		return em->create_entity((uint16_t)_groupId);
+		return em->create_entity((uint16_t)group_id);
 	}
 
 	size_type num() const
@@ -671,10 +666,10 @@ struct group
 
 	bool component_exists(const size_type id) const
 	{
-		size_type size = groupOffsets->size();
+		size_type size = group_offsets->size();
 		if (size > id)
 		{
-			auto val = groupOffsets->operator[](id);
+			auto val = group_offsets->operator[](id);
 
 			if (val != NOT_INIT)
 			{
@@ -686,22 +681,22 @@ struct group
 
 	size_type get_offset(const size_type id) const
 	{
-		return groupOffsets->operator [](id);
+		return group_offsets->operator [](id);
 	}
 
 	void dispose()
 	{
 		em->dispose();
-		groupOffsets->dispose();
+		group_offsets->dispose();
 
 		free(em);
-		free(groupOffsets);
+		free(group_offsets);
 	}
 
-	size_type _groupId;
+	size_type group_id;
 	size_type _size;
 	entity_manager* em;
-	group_offset_array* groupOffsets;
+	group_offset_array* group_offsets;
 	size_type _nComponents;
 };
 
@@ -713,8 +708,8 @@ struct group_array
 
 	group& operator[](const entity& e) const
 	{
-		assert(e._groupId < _size);
-		return _groups[e._groupId];
+		assert(e.group_id < _size);
+		return _groups[e.group_id];
 	}
 
 	group& operator[](const size_t i) const
@@ -993,21 +988,19 @@ struct view_array
 
 struct component_container
 {
-	component_array* _componentArrays;
+	component_array* _component_arrays;
 	size_type nComponents;
-
-
 
 	void resize(const size_type newSize)
 	{
 		component_array* temp = (component_array*)calloc(newSize, sizeof(component_array));
 		if (temp)
 		{
-			if (_componentArrays) {
-				memcpy(temp, _componentArrays, nComponents * sizeof(component_array));
-				free(_componentArrays);
+			if (_component_arrays) {
+				memcpy(temp, _component_arrays, nComponents * sizeof(component_array));
+				free(_component_arrays);
 			}
-			_componentArrays = temp;
+			_component_arrays = temp;
 			nComponents = newSize;
 		}
 		assert(temp != nullptr);
@@ -1015,16 +1008,16 @@ struct component_container
 
 	component_array* operator[](size_type i)  {
 		assert(i < nComponents);
-		return &_componentArrays[i];
+		return &_component_arrays[i];
 	}
 	void dispose()
 	{
 		for (int i = 0; i < nComponents; i++)
 		{
-			_componentArrays[i].dispose();
+			_component_arrays[i].dispose();
 		}
-		free(_componentArrays);
-		_componentArrays = nullptr;
+		free(_component_arrays);
+		_component_arrays = nullptr;
 		nComponents = 0;
 	}
 
@@ -1032,11 +1025,11 @@ struct component_container
 
 struct entity_key_free_list
 {
-	constexpr entity_key_free_list() : _entityKeys(nullptr), _size(0), _allocated(0), _frontIndex(0) {}
-	size_type* _entityKeys;
+	constexpr entity_key_free_list() : _entity_keys(nullptr), _size(0), _allocated(0), _front_index(0) {}
+	size_type* _entity_keys;
 	size_type _size;
 	size_type _allocated;
-	size_type _frontIndex;
+	size_type _front_index;
 
 	void push(const size_type e)
 	{
@@ -1046,13 +1039,13 @@ struct entity_key_free_list
 				//potentially we end up repeatedly moving the array every time we push, which may or may not be efficient depending on the size of the list
 				//this would only happen in some specific situation ex. when the count of elements swaps between _allocated-1 and _allocated
 				//need benchmarking
-		if (_allocated == _size - _frontIndex)
+		if (_allocated == _size - _front_index)
 		{
-			for (size_type i = _frontIndex; i < _size; i++) {
-				_entityKeys[i - _frontIndex] = _entityKeys[i];
+			for (size_type i = _front_index; i < _size; i++) {
+				_entity_keys[i - _front_index] = _entity_keys[i];
 			}
-			_size -= _frontIndex;
-			_frontIndex = 0;
+			_size -= _front_index;
+			_front_index = 0;
 		}
 		else if (_allocated == _size)
 		{
@@ -1061,37 +1054,37 @@ struct entity_key_free_list
 
 			if (temp)
 			{
-				if (_entityKeys != nullptr) {
-					memcpy(temp, _entityKeys, _allocated * sizeof(size_type));
-					free(_entityKeys);
+				if (_entity_keys != nullptr) {
+					memcpy(temp, _entity_keys, _allocated * sizeof(size_type));
+					free(_entity_keys);
 				}
-				_entityKeys = temp;
+				_entity_keys = temp;
 				_allocated = newSize;
 			}
 			assert(temp != nullptr);
 		}
-		_entityKeys[_size] = e;
+		_entity_keys[_size] = e;
 		_size++;
 	}
 
 	size_type pop()
 	{
-		size_type e = _entityKeys[_frontIndex];
-		_frontIndex++;
+		size_type e = _entity_keys[_front_index];
+		_front_index++;
 		return e;
 	}
 
 	bool empty() const
 	{
-		return _size - _frontIndex == 0;
+		return _size - _front_index == 0;
 	}
 
 	void dispose()
 	{
-		free(_entityKeys);
-		_entityKeys = nullptr;
+		free(_entity_keys);
+		_entity_keys = nullptr;
 		_size = 0;
-		_frontIndex = 0;
+		_front_index = 0;
 		_allocated = 0;
 	}
 
@@ -1111,7 +1104,7 @@ struct entity_key_manager
 
 	entity_key create(entity e)
 	{
-		if (freeList.empty())
+		if (free_list.empty())
 		{
 			if (!(_size < _allocated))
 			{
@@ -1135,7 +1128,7 @@ struct entity_key_manager
 			_size++;
 			return keys[_size - 1];
 		}
-		size_type index = freeList.pop();
+		size_type index = free_list.pop();
 		keys[index].e = e;
 		return keys[index];
 	}
@@ -1143,7 +1136,7 @@ struct entity_key_manager
 	void remove(entity_key key)
 	{
 		keys[key.index].version++;
-		freeList.push(key.index);
+		free_list.push(key.index);
 	}
 
 	entity operator[](entity_key key) const
@@ -1155,7 +1148,7 @@ struct entity_key_manager
 	{
 		free(keys);
 		keys = nullptr;
-		freeList.dispose();
+		free_list.dispose();
 		_size = 0;
 		_allocated = 0;
 	}
@@ -1164,22 +1157,22 @@ struct entity_key_manager
 	size_type _allocated;
 
 	entity_key* keys;
-	entity_key_free_list freeList;
+	entity_key_free_list free_list;
 };
 
 
 struct entity_component_system
 {
-	entity_component_system() : _viewCache(view_array()), _groups(group_array()), _componentArrays(component_container()) { }
+	entity_component_system() : _view_cache(view_array()), _groups(group_array()), _component_arrays(component_container()) { }
 
-	const entity_key create_entity(archetype_descriptor components, size_type groupSize = 1600U)
+	const entity_key create_entity(archetype_descriptor components, size_type group_size = 1600U)
 	{
 		group* g = nullptr;
-		get_or_make_group(components.arr, components.size, g, groupSize);
+		get_or_make_group(components.arr, components.size, g, group_size);
 		if (g)
 		{
 			entity e = g->create_entity();
-			return _entityKeys.create(e);
+			return _entity_keys.create(e);
 		}
 		assert(g != nullptr);
 		return entity_key();
@@ -1187,8 +1180,8 @@ struct entity_component_system
 
 	void remove_entity(entity_key& eKey)
 	{
-		entity e = (_entityKeys[eKey]);
-		_entityKeys.remove(eKey);
+		entity e = (_entity_keys[eKey]);
+		_entity_keys.remove(eKey);
 		_groups[e].remove_entity(e);
 	}
 
@@ -1204,7 +1197,7 @@ struct entity_component_system
 
 	bool has_component(const entity_key& eKey, const size_type id) const
 	{
-		entity e = (_entityKeys[eKey]);
+		entity e = (_entity_keys[eKey]);
 		return _groups[e].component_exists(id);
 	}
 
@@ -1212,49 +1205,49 @@ struct entity_component_system
 	T* get_component_array()
 	{
 		auto id = component_id<T>;
-		if (!(id < _componentArrays.nComponents))
+		if (!(id < _component_arrays.nComponents))
 		{
-			_componentArrays.resize(id + 1);
+			_component_arrays.resize(id + 1);
 		}
-		return (T*)_componentArrays[id]->_data;
+		return (T*)_component_arrays[id]->_data;
 	}
 
 	template<typename T>
 	T& get_component(const entity_key& e)
 	{
-		const size_type componentId = component_id<T>;
+		const size_type comp_id = component_id<T>;
 
-		auto data_array = _componentArrays[componentId];
+		auto data_array = _component_arrays[comp_id];
 
-		assert(_componentArrays.nComponents > componentId);
+		assert(_component_arrays.nComponents > comp_id);
 		assert(data_array->_data != nullptr);
-		assert(_groups[e.e].component_exists(componentId));
+		assert(_groups[e.e].component_exists(comp_id));
 		T* compArray = (T*)data_array->_data;
-		return compArray[_groups[e.e].get_offset(componentId) + e.e.index()];
+		return compArray[_groups[e.e].get_offset(comp_id) + e.e.index()];
 	}
 
 
 	template <typename T>
 	void set_component(const entity_key& e, T value)
 	{
-		const size_type componentId = component_id<T>;
-		assert(_componentArrays.nComponents > componentId);
-		assert(_componentArrays[componentId]._data != nullptr);
-		assert(_groups[e.e].component_exists(componentId));
+		const size_type comp_id = component_id<T>;
+		assert(_component_arrays.nComponents > comp_id);
+		assert(_component_arrays[comp_id]._data != nullptr);
+		assert(_groups[e.e].component_exists(comp_id));
 
-		T* compArray = (T*)_componentArrays[componentId]._data;
-		compArray[_groups[e.e].get_offset(componentId) + e.e.index()] = value;
+		T* compArray = (T*)_component_arrays[comp_id]._data;
+		compArray[_groups[e.e].get_offset(comp_id) + e.e.index()] = value;
 	}
 
 	view* get_view(const size_type* ids, const size_type n)
 	{
 		view* v;
-		if (_viewCache.get_view(ids, n, v))
+		if (_view_cache.get_view(ids, n, v))
 		{
 			return v;
 		}
 
-		v = _viewCache.create_view(ids, n);
+		v = _view_cache.create_view(ids, n);
 
 		const size_type count = _groups._size;
 		for (int i = 0; i < count; i++)
@@ -1267,7 +1260,7 @@ struct entity_component_system
 		return v;
 	}
 
-	void get_or_make_group(component_info* components, const size_type nComponents, group*& g, const size_type groupSize)
+	void get_or_make_group(component_info* components, const size_type nComponents, group*& g, const size_type group_size)
 	{
 		if (_groups.get_group(components, nComponents, g))
 		{
@@ -1279,31 +1272,31 @@ struct entity_component_system
 		for (int i = 0; i < nComponents; i++)
 		{
 			group_offset_pair pair = group_offset_pair();
-			if (!(components[i].id < _componentArrays.nComponents))
+			if (!(components[i].id < _component_arrays.nComponents))
 			{
-				_componentArrays.resize(components[i].id + 1U);
+				_component_arrays.resize(components[i].id + 1U);
 			}
-			if (_componentArrays[components[i].id]->_typeSize == 0)
+			if (_component_arrays[components[i].id]->_type_size == 0)
 			{
-				_componentArrays[components[i].id]->_typeSize = components[i].typeSize;
+				_component_arrays[components[i].id]->_type_size = components[i].type_size;
 			}
 
 			pair.componentId = components[i].id;
-			pair.offset = _componentArrays[components[i].id]->get_or_create_chunk(groupSize);
+			pair.offset = _component_arrays[components[i].id]->get_or_create_chunk(group_size);
 			arr.push(pair);
 		}
 
 
 		if (arr._size > 0)
 		{
-			g = _groups.make_group(arr, groupSize);
+			g = _groups.make_group(arr, group_size);
 
-			const size_type nViews = _viewCache._size;
-			for (size_type i = 0; i < nViews; i++)
+			const size_type n_views = _view_cache._size;
+			for (size_type i = 0; i < n_views; i++)
 			{
-				if (g->has_all(_viewCache._views[i]._components, _viewCache._views[i]._nComponents))
+				if (g->has_all(_view_cache._views[i]._components, _view_cache._views[i]._nComponents))
 				{
-					_viewCache._views[i].add_group(&(*g));
+					_view_cache._views[i].add_group(&(*g));
 				}
 			}
 
@@ -1314,16 +1307,16 @@ struct entity_component_system
 
 	void dispose()
 	{
-		_entityKeys.dispose();
+		_entity_keys.dispose();
 		_groups.dispose();
-		_componentArrays.dispose();
-		_viewCache.dispose();
+		_component_arrays.dispose();
+		_view_cache.dispose();
 	}
 
 private:
 
-	entity_key_manager _entityKeys;
-	view_array _viewCache;
+	entity_key_manager _entity_keys;
+	view_array _view_cache;
 	group_array _groups;
-	component_container _componentArrays;
+	component_container _component_arrays;
 };

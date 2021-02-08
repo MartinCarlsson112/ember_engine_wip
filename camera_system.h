@@ -24,14 +24,14 @@ struct camera_system
 	void update_vp()
 	{
 		math::mul(cam_data.perspective, cam_data.view, vp);
-		bool valid = math::inverse_matrix(cam_data.view, cam_data.view_inverse);
+		math::inverse_matrix(cam_data.view, cam_data.view_inverse);
 	}
 
 	void initialize(int2 window_size)
 	{
 		float aspectRatio = (float)window_size.x / (float)window_size.y;
 		math::perspective(60, aspectRatio, 0.01f, 100.0f, cam_data.perspective);
-		bool valid = math::inverse_matrix(cam_data.perspective, cam_data.proj_inverse);
+		math::inverse_matrix(cam_data.perspective, cam_data.proj_inverse);
 
 		math::lookat_matrix(camera_pos, camera_right, camera_dir, camera_up, cam_data.view);
 		update_vp();
@@ -84,7 +84,7 @@ struct camera_system
 		math::mul(final_rot_matrix, translation_matrix, cam_data.view);
 
 		float4x4 inverted;
-		bool valid = math::inverse_matrix(cam_data.view, inverted);
+		math::inverse_matrix(cam_data.view, inverted);
 		camera_dir = math::normalize(float3(inverted[8], inverted[9], inverted[10]));
 		camera_right = math::cross(camera_dir, -WORLD_UP);
 		update_vp();

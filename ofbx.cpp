@@ -3144,20 +3144,24 @@ static bool parseObjects(const Element& root, Scene* scene, u64 flags, Allocator
 			obj.getValue()->id = iter.first;
 		}
 	}
+	if (!ignore_geometry)
+	{
+		(*job_processor)([](void* ptr) {
+			ParseGeometryJob* job = (ParseGeometryJob*)ptr;
+			job->is_error = parseGeometry(*job->element, job->triangulate, job->geom).isError();
+			}, job_user_ptr, & parse_geom_jobs[0], (u32)sizeof(parse_geom_jobs[0]), (u32)parse_geom_jobs.size());
 
-	(*job_processor)([](void* ptr){
-		ParseGeometryJob* job = (ParseGeometryJob*)ptr;
-		job->is_error = parseGeometry(*job->element, job->triangulate, job->geom).isError();
-	}, job_user_ptr, &parse_geom_jobs[0], (u32)sizeof(parse_geom_jobs[0]), (u32)parse_geom_jobs.size());
-
-	for (const ParseGeometryJob& job : parse_geom_jobs) {
-		if (job.is_error) return false;
-		scene->m_object_map[job.id].object = job.geom;
-		if (job.geom) {
-			scene->m_all_objects.push_back(job.geom);
-			job.geom->id = job.id;
+		for (const ParseGeometryJob& job : parse_geom_jobs) {
+			if (job.is_error) return false;
+			scene->m_object_map[job.id].object = job.geom;
+			if (job.geom) {
+				scene->m_all_objects.push_back(job.geom);
+				job.geom->id = job.id;
+			}
 		}
 	}
+
+
 
 	for (const Scene::Connection& con : scene->m_connections)
 	{
@@ -3606,9 +3610,12 @@ IScene* load(const u8* data, int size, u64 flags, JobProcessor job_processor, vo
 	assert(scene->m_root_element);
 
 	// if (parseTemplates(*root.getValue()).isError()) return nullptr;
-	if (!parseConnections(*root.getValue(), scene.get())) return nullptr;
-	if (!parseTakes(scene.get())) return nullptr;
-	if (!parseObjects(*root.getValue(), scene.get(), flags, scene->m_allocator, job_processor, job_user_ptr)) return nullptr;
+	if (!parseConnections(*root.getValue(), scene.get())) 
+		return nullptr;
+	if (!parseTakes(scene.get())) 
+		return nullptr;
+	if (!parseObjects(*root.getValue(), scene.get(), flags, scene->m_allocator, job_processor, job_user_ptr)) 
+		return nullptr;
 	parseGlobalSettings(*root.getValue(), scene.get());
 
 	return scene.release();

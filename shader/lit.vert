@@ -30,7 +30,8 @@ layout(push_constant) uniform indices {
 void main() {
  
     view_pos = vec3(cam_pos);
-    normal = normalize(mat3(transpose(inverse(model))) * -vec3(in_normal));
+    normal =  -vec3(in_normal) * mat3(transpose(inverse(model)));
+
     uv = in_uv;
     frag_pos = vec3(model * in_pos);
     gl_Position = perspective * view * model * in_pos;

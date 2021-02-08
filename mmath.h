@@ -199,7 +199,7 @@ inline float2 operator-(float2 a)
 }
 
 
-using float4x4 = float[16];
+using float4x4 = std::array<float, 16>;
 
 struct int2
 {
@@ -225,7 +225,12 @@ struct uint32_2
 
 struct int3
 {
+	int x, y, z;
+};
 
+struct int4
+{
+	int x, y, z, w;
 };
 
 
@@ -355,9 +360,27 @@ inline constexpr quaternion operator*(const quaternion& a, const float b)
 	return quaternion(a.x * b, a.y * b, a.z * b, a.w * b);
 }
 
+inline constexpr quaternion operator*(const quaternion& a, const quaternion& b)
+{
+	return quaternion(b.x * a.w + b.y * a.z - b.z * a.y + b.w * a.x, 
+		-b.x * a.z + b.y * a.w + b.z * a.x + b.w * a.y, 
+		b.x * a.y - b.y * a.x + b.z * a.w + b.w * a.z, 
+		-b.x * a.x - b.y * a.y - b.z * a.z + b.w * a.w);
+}
+
 inline constexpr quaternion operator-(const quaternion& a)
 {
 	return quaternion(-a.x, -a.y, -a.z, -a.w);
+}
+
+inline constexpr float3 operator*(const quaternion& q, const float3& v)
+{
+	float q_scalar = q.scalar;
+	float qv_dot_v = q.x * v.x + q.y * v.y + q.z * v.z;
+	float qv_dot_qv = q.x * q.x + q.y * q.y + q.z * q.z;
+	float3 qv_cross_v = float3(q.y * v.z - q.z * v.y, q.z * v.x - q.x * v.z, q.x * v.y - q.y * v.x);
+
+	return q.vector * 2.0f * qv_dot_v + v * (q_scalar * q_scalar - qv_dot_qv) + qv_cross_v * 2.0f * q_scalar;
 }
 
 
@@ -369,6 +392,15 @@ inline bool operator!=(const quaternion& left, const quaternion& right)
 {
 	return !(left == right);
 }
+
+struct transform
+{
+	float3 position;
+	quaternion rotation;
+	float3 scale;
+};
+
+
 
 namespace math
 {
@@ -382,7 +414,7 @@ namespace math
 		return a.x * b.x + a.y * b.y + a.z * b.z + a.w * a.z;
 	}
 
-	inline float dot(const quaternion& a, const quaternion& b)
+	inline constexpr float dot(const quaternion& a, const quaternion& b)
 	{
 		return a.x * b.x + a.y * b.y + a.z * b.z + a.w * a.z;
 	}
@@ -392,7 +424,7 @@ namespace math
 		return dot(p, p);
 	}
 
-	inline float sqr_length(const quaternion& q)
+	inline constexpr float sqr_length(const quaternion& q)
 	{
 		return dot(q, q);
 	}
@@ -419,9 +451,45 @@ namespace math
 		return sqrtf(len);
 	}
 
-	inline float3 normalize(const float3& a)
+	inline float3 float3_min(const float3& a, const float3& b)
+	{
+		if (sqr_length(a) < sqr_length(b))
+		{
+			return a;
+		}
+		else
+		{
+			return b;
+		}
+	}
+
+	inline float3 float3_max(const float3& a, const float3& b)
+	{
+		if (sqr_length(a) > sqr_length(b))
+		{
+			return a;
+		}
+		else
+		{
+			return b;
+		}
+	}
+
+	inline float3 normalize(const float3& a) 
 	{
 		return a * (1.0f / sqrtf(dot(a, a)));
+	}
+
+	inline constexpr quaternion normalize(const quaternion& a)
+	{
+		float len = sqr_length(a);
+		if (len < epsilon)
+		{
+			return quaternion();
+		}
+
+		float s = 1.0f / sqrtf(len);
+		return quaternion(a.x * s, a.y * s, a.z * s, a.w * s);
 	}
 
 	inline float3 cross(const float3& a, const float3& b)
@@ -522,6 +590,47 @@ namespace math
 			+ curve.c2 * ((alpha * alpha) * (alpha - 1.0f));
 	}
 
+	inline transform combine(const transform& a, const transform& b)
+	{
+		transform out;
+		out.scale = a.scale * b.scale;
+		out.rotation = b.rotation * a.rotation;
+		out.position = a.rotation * (a.scale * b.position);
+		out.position = a.position + out.position;
+		return out;
+	}
+
+	
+
+
+	inline void to_float4x4(const transform& a, float4x4& out)
+	{
+		float3 x = a.rotation * float3(1, 0, 0);
+		float3 y = a.rotation * float3(0, 1, 0);
+		float3 z = a.rotation * float3(0, 0, 1);
+		x = x * a.scale.x;
+		y = y * a.scale.y;
+		z = z * a.scale.z;
+
+		out[0] = x.x;
+		out[1] = x.y;
+		out[2] = x.z;
+		out[3] = 0;
+		out[4] = y.x;
+		out[5] = y.y;
+		out[6] = y.z;
+		out[7] = 0;
+		out[8] = z.x;
+		out[9] = z.y;
+		out[10] = z.z;
+		out[11] = 0;
+		out[12] = a.position.x;
+		out[13] = a.position.y;
+		out[14] = a.position.z;
+		out[15] = 1;
+	}
+
+
 	inline void perspective(float fov, float aspect, float near, float far, float4x4& output)
 	{
 		float f = 1.0f / tanf(deg2rad(fov * 0.5f));
@@ -554,20 +663,116 @@ namespace math
 		return float3(x, y, z);
 	}
 
-	inline quaternion angle_axis()
+	inline quaternion angle_axis(float angle, const float3& axis)
 	{
-		return quaternion();
+		float3 normalized_axis = normalize(axis);
+		float s = sinf(angle * 0.5f);
+		return quaternion(normalized_axis.x * s, normalized_axis.y * s, normalized_axis.z * s, cosf(angle * 0.5f));
 	}
 
-	inline quaternion from_to()
-	{
-		return quaternion();
+	inline quaternion mix(const quaternion& from, const quaternion& to, float t) 
+	{ 
+		return from * (1.0f - t) + to * t; 
 	}
+
+	inline quaternion inverse(const quaternion& q)
+	{
+		float len_sq = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
+		if (len_sq < epsilon)
+		{ 
+			return quaternion();
+		}   
+
+		float s = 1.0f / len_sq;   
+		return quaternion(-q.x * s, -q.y * s, -q.z * s, q.w * s);
+	}
+
+	inline quaternion from_to(const float3& from, const float3& to)
+	{
+		float3 normalized_from = normalize(from);
+		float3 normalized_to = normalize(to);
+
+		if (equals(normalized_from,normalized_to))
+		{
+			return quaternion();
+		}
+		//if the vectors are opposites, best orthogonal can be used to create quaternion
+		else if (equals(normalized_from, -normalized_to))
+		{
+			float3 orthogonal = float3(1, 0, 0);
+
+			if (fabsf(normalized_from.y) < fabsf(normalized_from.x))
+			{
+				orthogonal = float3(0, 1, 0);
+			}
+
+			if (fabsf(normalized_from.z) < fabsf(normalized_from.y) &&
+				fabsf(normalized_from.z) < fabsf(normalized_from.x))
+			{
+				orthogonal = float3(0, 0, 1);
+			}
+
+			float3 axis = normalize(cross(normalized_from, orthogonal));
+			return quaternion(axis.x, axis.y, axis.z, 0);
+		}
+
+		float3 half = normalize(normalized_from + normalized_to);
+		float3 axis = cross(normalized_from, half);
+		return quaternion(axis.x, axis.y, axis.z, dot(normalized_from, half));
+	}
+
+	inline quaternion look_rotation(const float3& direction, const float3& up)
+	{
+		float3 forward = normalize(direction);
+		float3 normalized_up = normalize(up);
+		float3 right = cross(normalized_up, forward);
+		normalized_up = cross(forward, right);
+		quaternion world_to_object = from_to(float3(0, 0, 1), forward);
+		float3 object_up = world_to_object * float3(0, 1, 0);
+		quaternion u2u = from_to(object_up, normalized_up);
+		return normalize(world_to_object * u2u);
+	}
+
+
 
 	inline bool same_orientation(const quaternion& l, const quaternion&r)
 	{
-		return false;
+		return (fabsf(l.x - r.x) 
+			<= epsilon && fabsf(l.y - r.y)
+			<= epsilon && fabsf(l.z - r.z)
+			<= epsilon && fabsf(l.w - r.w)
+			<= epsilon) || (fabsf(l.x + r.x)
+				<= epsilon && fabsf(l.y + r.y)
+				<= epsilon && fabsf(l.z + r.z)
+				<= epsilon && fabsf(l.w + r.w)
+				<= epsilon);
+	}	
+
+	inline void to_float4x4(const quaternion& a, float4x4& out)
+	{
+		float3 r = a * float3(1, 0, 0);
+		float3 u = a * float3(0, 1, 0);
+		float3 f = a * float3(0, 0, 1);
+		out[0] = r.x;
+		out[1] = r.y;
+		out[2] = r.z;
+		out[3] = 0;
+		out[4] = u.x;
+		out[5] = u.y;
+		out[6] = u.z;
+		out[7] = 0;
+		out[8] = f.x;
+		out[9] = f.y;
+		out[10] = f.z;
+		out[11] = 0;
+		out[12] = 0;
+		out[13] = 0;
+		out[14] = 0;
+		out[15] = 1;
 	}
+
+
+
 
 	inline void mul(float4x4 const& left,
 		float4x4 const& right, float4x4& result) {
@@ -795,8 +1000,28 @@ namespace math
 	}
 
 
-
-
+	inline quaternion from_float4x4(const float4x4& matrix)
+	{
+		float3 up = normalize(float3(matrix[4], matrix[5], matrix[6]));
+		float3 forward = normalize(float3(matrix[8], matrix[9], matrix[10]));
+		float3 right = cross(up, forward);
+		up = cross(forward, right);
+		return look_rotation(forward, up);
+	}
+	
+	inline transform to_transform(const float4x4& matrix)
+	{
+		transform out;
+		out.position = float3(matrix[12], matrix[13], matrix[14]);
+		out.rotation = from_float4x4(matrix);
+		float4x4 rot_scale_mat = { matrix[0], matrix[1], matrix[2], 0, matrix[4], matrix[5], matrix[6], 0, matrix[8], matrix[9], matrix[10], 0, 0, 0, 0, 1 };
+		float4x4 inv_rot_mat;
+		to_float4x4(inverse(out.rotation), inv_rot_mat);
+		float4x4 scale_skew_mat;
+		mul(rot_scale_mat, inv_rot_mat, scale_skew_mat);
+		out.scale = float3(scale_skew_mat[0], scale_skew_mat[5], scale_skew_mat[10]);
+		return out;
+	}
 
 	constexpr static int perlin_hash[] = { 151,160,137,91,90,15,
    131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
@@ -842,19 +1067,19 @@ namespace math
 			float w = fade(pos.z);
 			int A = p[x] +y;
 			int AA = p[A] +z;
-			int AB = p[A + 1] + z;
+			int AB = p[size_t(A) + 1] + z;
 	
-			int B = p[x + 1] + y;
-			int BA = p[B] + z, BB = p[B + 1] + z; 
+			int B = p[size_t(x) + 1] + y;
+			int BA = p[B] + z, BB = p[size_t(B) + 1] + z;
 
 			return lerp(w, lerp(v, lerp(u, grad(p[AA], pos.x, pos.y, pos.z),
 				grad(p[BA], pos.x - 1, pos.y, pos.z)), 
 				lerp(u, grad(p[AB], pos.x, pos.y - 1, pos.z),  
 					grad(p[BB], pos.x - 1, pos.y - 1, pos.z))),
-				lerp(v, lerp(u, grad(p[AA + 1], pos.x, pos.y, pos.z - 1), 
-					grad(p[BA + 1], pos.x - 1, pos.y, pos.z - 1)),
-					lerp(u, grad(p[AB + 1], pos.x, pos.y - 1, pos.z - 1),
-						grad(p[BB + 1], pos.x - 1, pos.y - 1, pos.z - 1))));
+				lerp(v, lerp(u, grad(p[size_t(AA) + 1], pos.x, pos.y, pos.z - 1),
+					grad(p[size_t(BA) + 1], pos.x - 1, pos.y, pos.z - 1)),
+					lerp(u, grad(p[size_t(AB) + 1], pos.x, pos.y - 1, pos.z - 1),
+						grad(p[size_t(BB) + 1], pos.x - 1, pos.y - 1, pos.z - 1))));
 		}
 
 	};

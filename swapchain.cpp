@@ -1,7 +1,7 @@
 #include "swapchain.h"
 #include "swapchain_support_details.h"
 #include "vulkan_utils.h"
-
+#include  <algorithm>
 namespace em
 {
 
@@ -14,7 +14,7 @@ namespace em
 	{
 		swapchain_support_details::query_swapchain_support(device.gpu, surface);
 		surface_format = choose_swap_surface_format(device.swapchain_support.formats);
-		extent = choose_swap_extent(device.swapchain_support.capabilities, windowRight, windowBottom);
+		extent = { windowRight, windowBottom };
 		uint32_t queue_family_indices[] = { device.indices.graphics_family.value(), device.indices.present_family.value() };
 		VkPresentModeKHR present_mode = choose_swap_present_mode(device.swapchain_support.presentModes);
 		uint32_t image_count = device.swapchain_support.capabilities.minImageCount +1;
@@ -135,8 +135,8 @@ namespace em
 	{
 		//TODO: Fix this, maxImageExtent and MinImageExtent lies... 
 		VkExtent2D actualExtent = { (uint32_t)windowRight , (uint32_t)windowBottom };
-		//actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-		//actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+		actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+		actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
 		return actualExtent;
 	}
 }

@@ -223,7 +223,7 @@ namespace em
 			acceleration_structure_geometry.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
 			acceleration_structure_geometry.geometry.triangles.vertexData = vb_device_address;
 			acceleration_structure_geometry.geometry.triangles.maxVertex = batches[i].vertex_count;
-			acceleration_structure_geometry.geometry.triangles.vertexStride = sizeof(vertex);
+			acceleration_structure_geometry.geometry.triangles.vertexStride = batches[i].vertex_stride;
 			acceleration_structure_geometry.geometry.triangles.indexType = VK_INDEX_TYPE_NONE_KHR;
 			acceleration_structure_geometry.geometry.triangles.transformData.deviceAddress = 0;
 			acceleration_structure_geometry.geometry.triangles.transformData.hostAddress = nullptr;
@@ -336,7 +336,7 @@ namespace em
 				instance.instanceCustomIndex = 0;
 				instance.mask = 0XFF;
 				instance.instanceShaderBindingTableRecordOffset = 0;
-				instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+				instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR | VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR;
 				instance.accelerationStructureReference = blas[i].address;
 				instances[counter] = instance;
 				counter++;

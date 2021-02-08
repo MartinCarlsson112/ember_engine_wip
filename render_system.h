@@ -24,8 +24,7 @@ namespace std {
 			using std::string;
 
 			return ((hash<uint32_t>()(k.material)
-				^ (hash<VkBuffer>()(k.vbo) << 1)) >> 1)
-				^ (hash<uint32_t>()(k.shader) << 1);
+				^ (hash<VkBuffer>()(k.vbo) << 1)) >> 1);
 		}
 	};
 
@@ -35,7 +34,6 @@ namespace std {
 inline bool operator==( const renderable& rhs,  const renderable& lhs)
 {
 	return (rhs.vbo == lhs.vbo) &&
-		(rhs.shader == lhs.shader) &&
 		(rhs.material == lhs.material);
 }
 
@@ -88,11 +86,12 @@ struct render_system
 					batches.push_back(mesh_batch());
 					auto& batch = batches[batches.size() - 1];
 					batch.count = 1;
-					batch.descriptor_set = rend.shader;
-					batch.texture_id = rend.material;
+					batch.material = rend.material;
 					batch.vbo = rend.vbo;
 					batch.vertex_count = rend.vert_count;
-
+					batch.descriptor_set = rend.desc;
+					batch.pipeline = rend.pipeline;
+					batch.vertex_stride = rend.vertex_stride;
 					math::translate(float3(pos.x, pos.y, pos.z), batch.model[0]);
 				
 					batch_indexing[rend] = (uint32_t)(batches.size() - 1);

@@ -16,7 +16,7 @@ namespace em
 			const VkCommandPool& command_pool);
 
 		void record_command_buffer(const uint32_t current_image, const std::vector<VkFramebuffer>& swapChainFramebuffers, const std::vector<mesh_batch>& batch,
-			const VkRenderPass& render_pass, const VkExtent2D& extents, const descriptor_sets& sets, const graphics_pipeline& graphicsPipeline);
+			const VkRenderPass& render_pass, const VkExtent2D& extents, const std::vector<descriptor_sets>& sets, const std::vector<graphics_pipeline>& graphicsPipeline);
 
 		std::vector<VkCommandBuffer> command_buffers;
 	};

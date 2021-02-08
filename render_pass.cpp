@@ -62,6 +62,6 @@ namespace em
 		render_pass_info.dependencyCount = 1;
 		render_pass_info.pDependencies = &dependency;
 
-		VK_CHECK_RESULT(vkCreateRenderPass(device, &render_pass_info, nullptr, &renderPass));
+		VK_CHECK_RESULT(vkCreateRenderPass(device, &render_pass_info, nullptr, &pass));
 	}
 }

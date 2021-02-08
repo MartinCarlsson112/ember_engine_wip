@@ -1,6 +1,10 @@
 #include "game_app.h"
 #include "voxels.h"
 #include <WinUser.h>
+#include <future>
+#include "skinned_vertex.h"
+#include "vertex.h"
+
 using namespace std::chrono_literals;
 bool game_app::running = false;
 
@@ -17,8 +21,6 @@ float noise(float3 position, int octaves, float frequency, float persistence) {
 	return total / maxAmplitude;
 }
 
-
-
 void game_app::initialize()
 {
 	srand((unsigned int)time(nullptr));
@@ -26,19 +28,43 @@ void game_app::initialize()
 
 	wm.create(1280, 720, L"test");
 	render.create_vulkan_context("test", wm.window, int2{ wm.wr.right, wm.wr.bottom });
-
 	resources.initialize(&render.device);
 
-	mesh bunny_mesh = resources.load_mesh("assets/bunny.fbx");
-	mesh teapot_mesh = resources.load_mesh("assets/teapot.fbx");
-	mesh cube_mesh = resources.load_mesh("assets/cube.fbx");
-	
-	//todo: normal maps loading
-	//todo: texture map loading optimizations
-	//todo: async loading
-	//todo: multi threaded loading
-	uint32_t plastic_material = resources.load_material("assets/textures/plastic_color.png", "assets/textures/plastic_normal.png", "assets/textures/plastic_r_m_ao.png");
-	uint32_t rock_material = resources.load_material("assets/textures/metal_color.png", "assets/textures/metal_normal.png", "assets/textures/metal_r_m_ao.png");
+	anim_sys.initialize(&resources.clips, &resources.rigs);
+	mesh bunny_mesh;
+	mesh teapot_mesh;
+	mesh cube_mesh;
+
+
+	skinned_mesh goblin = resources.load_skinned_mesh("assets/crimcrox_hair_and_boots.fbx");
+	clip goblin_clip = resources.load_animation("assets/crimcrox_animations.fbx", goblin._rig);
+
+	auto p = goblin._rig.bind_pose;
+	goblin_clip.sample(p, 0.0f);
+
+	std::vector<float4x4> mat;
+	p.get_matrices(mat);
+	for (int i = 0; i < p.size(); i++)
+	{
+		float4x4 result;
+		math::mul(mat[i], goblin._rig.inv_bind_pose[i], result);
+	}
+
+	auto mesh_load_future = std::async(std::launch::async, [this, &bunny_mesh, &teapot_mesh, &cube_mesh]() {
+		bunny_mesh = resources.load_mesh("assets/bunny.fbx");
+		teapot_mesh = resources.load_mesh("assets/teapot.fbx");
+		cube_mesh = resources.load_mesh("assets/cube.fbx");
+	});
+	uint32_t plastic_material;
+	uint32_t rock_material;
+
+	auto plastic_future = std::async(std::launch::async, [this, &plastic_material]() {
+		plastic_material = resources.load_material("assets/textures/plastic_color.png", "assets/textures/plastic_normal.png", "assets/textures/plastic_r_m_ao.png");
+	});
+
+	auto rock_future = std::async(std::launch::async, [this, &rock_material]() {
+		rock_material = resources.load_material("assets/textures/metal_color.png", "assets/textures/metal_normal.png", "assets/textures/metal_r_m_ao.png");
+		});
 
 	running = true;
 
@@ -46,7 +72,6 @@ void game_app::initialize()
 	auto color_id = storage.add_color(uint32_4(0, 0, 0, 0));
 	color_id = storage.add_color(uint32_4(255, 35, 128, 255));
 	auto dirt = storage.add_color(uint32_4( 95, 46, 0, 255));
-
 
 	locked_mouse = true;
 	wm.set_cursor_locked(locked_mouse, { window_center });
@@ -92,6 +117,7 @@ void game_app::initialize()
 
 	archetype<position, directional_light> light_components;
 	archetype<position, renderable> renderable_components;
+	archetype<position, renderable, animation> animation_components;
 	auto e = ecs.create_entity(light_components.descriptor(), 5);
 	auto& lightcomp=  ecs.get_component<directional_light>(e);
 
@@ -99,63 +125,133 @@ void game_app::initialize()
 	lightcomp.direction = float4(0, -0.8f, 0.3f, 1.0f);
 
 	em::polygenerator::generate(storage, resources);
+	mesh_load_future.get();
+	plastic_future.get();
+	rock_future.get();
 
+	em::descriptor_set_settings static_mesh_descriptor;
+	static_mesh_descriptor.materials = resources.materials;
+	em::descriptor_set_settings skinned_mesh_descriptor;
+	skinned_mesh_descriptor.materials = resources.materials;
+
+	render.create_swapchain();
+	uint32_t skinned_mesh_desc_index = render.create_descriptor_set(skinned_mesh_descriptor);
+	uint32_t static_mesh_desc_index = render.create_descriptor_set(static_mesh_descriptor);
+
+	em::graphics_pipeline_settings static_mesh_pipeline;
+	em::graphics_pipeline_settings skinned_mesh_pipeline;
+
+	get_attrib_description(static_mesh_pipeline.attribute_desc);
+	static_mesh_pipeline.cullmode = VK_CULL_MODE_BACK_BIT;
+	static_mesh_pipeline.binding_desc = get_binding_desc();
+	static_mesh_pipeline.sample_count = VK_SAMPLE_COUNT_1_BIT;
+	static_mesh_pipeline.desc_layout = static_mesh_desc_index;
+	static_mesh_pipeline.primitives = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	static_mesh_pipeline.winding = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	static_mesh_pipeline.shaders.push_back(resources.load_shader("shader/lit.vert.spv", em::shader_type::VK_SHADER_STAGE_VERTEX_BIT));
+	static_mesh_pipeline.shaders.push_back(resources.load_shader("shader/lit.frag.spv", em::shader_type::VK_SHADER_STAGE_FRAGMENT_BIT));
+
+	uint32_t static_mesh_pipeline_index = render.create_pipeline(static_mesh_pipeline);
+
+	skinned_vertex_get_attrib_description(skinned_mesh_pipeline.attribute_desc);
+	skinned_mesh_pipeline.cullmode = VK_CULL_MODE_BACK_BIT;
+	skinned_mesh_pipeline.binding_desc = skinned_vertex_get_binding_desc();
+	skinned_mesh_pipeline.sample_count = VK_SAMPLE_COUNT_1_BIT;
+	skinned_mesh_pipeline.desc_layout = skinned_mesh_desc_index;
+	skinned_mesh_pipeline.primitives = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	skinned_mesh_pipeline.winding = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	skinned_mesh_pipeline.shaders.push_back(resources.load_shader("shader/lit_skinned.vert.spv", em::shader_type::VK_SHADER_STAGE_VERTEX_BIT));
+	skinned_mesh_pipeline.shaders.push_back(resources.load_shader("shader/lit.frag.spv", em::shader_type::VK_SHADER_STAGE_FRAGMENT_BIT));
+
+	uint32_t skinned_mesh_pipeline_index = render.create_pipeline(skinned_mesh_pipeline);
 
 	auto voxel_mesh = resources.load_mesh("voxels");
-	e =  ecs.create_entity(renderable_components.descriptor(),  400);
+	e =  ecs.create_entity(renderable_components.descriptor(),  50);
 	auto& rend = ecs.get_component<renderable>(e);
 	rend.vbo = voxel_mesh.vbo.buffer;
 	rend.vert_count = voxel_mesh.vertex_count;
-	rend.material = plastic_material;
+	rend.material = rock_material;
+	rend.vertex_stride = sizeof(vertex);
+	rend.pipeline = static_mesh_pipeline_index;
+	rend.desc = static_mesh_desc_index;
 
-	for (int i = 0; i < 100; i++)
-	{
-		auto e2 = ecs.create_entity(renderable_components.descriptor());
-		auto& rend3 = ecs.get_component<renderable>(e2);
-		rend3.vbo = bunny_mesh.vbo.buffer;
-		rend3.vert_count = bunny_mesh.vertex_count;
+	e = ecs.create_entity(animation_components.descriptor(), 1);
+	auto& rend5 = ecs.get_component<renderable>(e);
+	rend5.vbo = goblin._mesh.vbo.buffer;
+	rend5.vert_count = goblin._mesh.vertex_count;
+	rend5.material = rock_material;
+	rend5.vertex_stride = sizeof(skinned_vertex);
+	rend5.pipeline = skinned_mesh_pipeline_index;
+	rend5.desc = skinned_mesh_desc_index;
 
-		auto& pos2 = ecs.get_component<position>(e2);
-		pos2.x = i / 5;
-		pos2.y = i % 5;
-		pos2.z = 5;
-	}
+	auto& anim = ecs.get_component<animation>(e);
+	anim.animation_clip = 0;
+	anim.rig = 0;
 
-	for (int i = 0; i < 100; i++)
-	{
-		auto e2 = ecs.create_entity(renderable_components.descriptor());
-		auto& rend3 = ecs.get_component<renderable>(e2);
-		rend3.vbo = teapot_mesh.vbo.buffer;
-		rend3.vert_count = teapot_mesh.vertex_count;
-		rend3.material = rock_material;
 
-		auto& pos2 = ecs.get_component<position>(e2);
-		pos2.x = (i / 5) * 10;
-		pos2.y = (i % 5) * 10;
-		pos2.z = 10;
-	}
+	auto& p5 = ecs.get_component<position>(e);
+	p5.x = 5;
+	p5.z = 5;
+	p5.y = 5;
 
-	for (int i = 0; i < 128; i++)
-	{
-		auto cube = ecs.create_entity(renderable_components.descriptor());
-		auto& rend3 = ecs.get_component<renderable>(cube);
-		rend3.vbo = cube_mesh.vbo.buffer;
-		rend3.vert_count = cube_mesh.vertex_count;
 
-		auto& pos2 = ecs.get_component<position>(cube);
-		pos2.x = 3 + (i / 5) * 0.25f;
-		pos2.y = -3 + (i % 5) * 0.25f;
-		pos2.z = i;
-	}
+	//for (int i = 0; i < 10; i++)
+	//{
+	//	auto e2 = ecs.create_entity(renderable_components.descriptor());
+	//	auto& rend3 = ecs.get_component<renderable>(e2);
+	//	rend3.vbo = bunny_mesh.vbo.buffer;
+	//	rend3.vert_count = bunny_mesh.vertex_count;
+	//	rend3.material = rock_material;
+	//	rend3.vertex_stride = sizeof(vertex);
+	//	rend3.pipeline = static_mesh_pipeline_index;
+	//	rend3.desc = static_mesh_desc_index;
+	//	auto& pos2 = ecs.get_component<position>(e2);
+	//	pos2.x = (float)(i / 5);
+	//	pos2.y = (float)(i % 5);
+	//	pos2.z = (float)5;
+	//}
+
+	//for (int i = 0; i < 10; i++)
+	//{
+	//	auto e2 = ecs.create_entity(renderable_components.descriptor());
+	//	auto& rend3 = ecs.get_component<renderable>(e2);
+	//	rend3.vbo = teapot_mesh.vbo.buffer;
+	//	rend3.vert_count = teapot_mesh.vertex_count;
+	//	rend3.material = rock_material;
+	//	rend3.pipeline = static_mesh_pipeline_index;
+	//	rend3.desc = static_mesh_desc_index;
+	//	rend3.vertex_stride = sizeof(vertex);
+	//	auto& pos2 = ecs.get_component<position>(e2);
+	//	pos2.x = (float)(i / 5) * 10.0f;
+	//	pos2.y = (float)(i % 5) * 10.0f;
+	//	pos2.z = (float)10;
+	//}
+
+	//for (int i = 0; i < 10; i++)
+	//{
+	//	auto cube = ecs.create_entity(renderable_components.descriptor());
+	//	auto& rend3 = ecs.get_component<renderable>(cube);
+	//	rend3.vbo = cube_mesh.vbo.buffer;
+	//	rend3.vert_count = cube_mesh.vertex_count;
+	//	rend3.material = rock_material;
+	//	rend3.vertex_stride = sizeof(vertex);
+	//	rend3.pipeline = static_mesh_pipeline_index;
+	//	rend3.desc = static_mesh_desc_index;
+
+	//	auto& pos2 = ecs.get_component<position>(cube);
+	//	pos2.x = 3 + (i / 5) * 0.25f;
+	//	pos2.y = -3 + (i % 5) * 0.25f;
+	//	pos2.z = (float)i;
+	//}
 
 
 	window_size = int2(wm.wr.right, wm.wr.bottom);
 	window_center = window_size / 2;
 
-	resources.load_shader("shader/lit.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-	resources.load_shader("shader/lit.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-	render.create_pipeline(&resources.shaders, &resources.materials);
+
+
+
 	light_sys.initialize(&ecs);
 	camera_sys.initialize(window_size);
 	storage.dispose();
@@ -174,6 +270,7 @@ void game_app::start()
 {
 	int fps_counter = 0;
 	nano_seconds fps_timer = 0ns;
+	std::vector<float4x4> poses;
 	while (running)
 	{
 		wm.process_events();
@@ -189,6 +286,7 @@ void game_app::start()
 			auto dt = std::min(lag, target_time);
 			float dt_float = (float)(dt.count() / 100000000.0f);
 			update(dt_float);
+			anim_sys.update(&ecs, dt_float, poses);
 			//std::cout << dt_float << std::endl;
 			lag -= dt;
 		}
@@ -201,7 +299,7 @@ void game_app::start()
 			fps_timer = 0s;
 		}
 		fps_counter++;
-		render.render(window_size, light_sys.lbo, camera_sys.cam_data, render_sys.batches);
+		render.render(window_size, light_sys.lbo, camera_sys.cam_data, render_sys.batches, poses);
 	}
 }
 
@@ -218,6 +316,7 @@ void game_app::update(float dt)
 		wm.set_cursor_locked(locked_mouse, { window_center });
 	}
 
+	
 	light_sys.update(&ecs, dt);
 	camera_sys.fps_camera_update(dt, wm.input_manager, window_center);
 	render_sys.gather_renderables(&render, &ecs, camera_sys.vp);

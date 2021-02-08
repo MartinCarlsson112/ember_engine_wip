@@ -11,14 +11,14 @@ namespace em
 {
 	struct acceleration_structure
 	{
-		VkAccelerationStructureKHR handle;
-		uint64_t address;
+		VkAccelerationStructureKHR handle = VK_NULL_HANDLE;
+		uint64_t address = 0;
 		buffer_object buffer;
 	};
 
 	struct scratch_buffer
 	{
-		uint64_t address;
+		uint64_t address = 0;
 		buffer_object buffer;
 	};
 
@@ -27,11 +27,11 @@ namespace em
 	{
 		VkStridedDeviceAddressRegionKHR strided_device_address_region{};
 		buffer_object bo;
-		VkDeviceSize size;
-		VkDeviceSize alignment;
-		VkDescriptorBufferInfo descriptor;
-		VkBufferUsageFlags usage;
-		VkMemoryPropertyFlags memory_properties;
+		VkDeviceSize size = 0;
+		VkDeviceSize alignment = 0;
+		VkDescriptorBufferInfo descriptor{};
+		VkBufferUsageFlags usage{};
+		VkMemoryPropertyFlags memory_properties{};
 
 		void* data = nullptr;
 	};

@@ -5,6 +5,7 @@
 #include "render_system.h"
 #include "light_system.h"
 #include "resource_manager.h"
+#include "animation_system.h"
 #include <chrono>
 struct game_app_data
 {
@@ -40,6 +41,7 @@ struct game_app
 	camera_system camera_sys;
 	render_system render_sys;
 	light_system light_sys;
+	animation_system anim_sys;
 	time_point base_time;
 
 	nano_seconds target_time;

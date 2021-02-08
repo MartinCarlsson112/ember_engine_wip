@@ -5,20 +5,23 @@
 #include "vertex.h"
 #include "image_object.h"
 #include "mesh.h"
+#include "skinned_vertex.h"
 
 namespace em
 {
 
 	struct device
 	{
-		device() :logical_device(VK_NULL_HANDLE), gpu(VK_NULL_HANDLE), presentQueue(VK_NULL_HANDLE), graphics_queue(VK_NULL_HANDLE), pool(VK_NULL_HANDLE){}
+		device() :logical_device(VK_NULL_HANDLE), gpu(VK_NULL_HANDLE), present_queue(VK_NULL_HANDLE), graphics_queue(VK_NULL_HANDLE), pool(VK_NULL_HANDLE){}
 
 		void create_buffer(buffer_object& bo, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties)const;
 		void create_buffer(buffer_object& bo, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkMemoryAllocateFlags alloc_flags)const;
 		void copy_buffer(VkBuffer dst_buffer, VkBuffer src_buffer, VkDeviceSize size, VkDeviceSize src_offset = 0, VkDeviceSize dst_offset = 0) const;
 		void create_image(int width, int height, em::image_object& io, const image_options& options) const;
 
+		void load_mesh(const std::vector<skinned_vertex>& verts, mesh& _mesh) const;
 		void load_mesh(const std::vector<vertex>& verts, mesh& _mesh) const;
+
 		void load_image(char* data, int width, int height, em::image_object& io, const image_options& options) const;
 		void load_texture(char* data, int width, int height, em::image_object& io, const image_options& options) const;
 
@@ -30,7 +33,7 @@ namespace em
 
 		VkDevice logical_device;
 		VkPhysicalDevice gpu;
-		VkQueue presentQueue;
+		VkQueue present_queue;
 		VkQueue graphics_queue;
 		swapchain_support_details swapchain_support;
 		queue_family_indices indices;
@@ -47,7 +50,7 @@ namespace em
 
 	private:
 		void init_buffers(const std::vector<vertex>& verts, mesh& _mesh) const;
-
+		void init_buffers(const std::vector<skinned_vertex>& verts, mesh& _mesh) const;
 	protected:
 
 		queue_family_indices find_queue_families(const VkPhysicalDevice& device, const VkSurfaceKHR& surface);

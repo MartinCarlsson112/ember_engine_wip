@@ -10,7 +10,7 @@ layout(location = 3) in vec3 frag_pos;
 layout(binding = 2) uniform sampler2D shadow_map;
 
 #define MAX_TEXTURES 32
-layout(binding = 3) uniform sampler2D material_textures[MAX_TEXTURES];
+layout(binding = 4) uniform sampler2D material_textures[MAX_TEXTURES];
 
 layout(location = 0) out vec4 out_color;
 struct directional_light
@@ -19,10 +19,20 @@ struct directional_light
 	vec4 diffuse;
 	vec4 direction;
 };
+
+struct point_light
+{
+	vec4 position;
+	vec4 diffuse;
+};
+
+
 #define MAX_DIR_LIGHT 5
+#define MAX_POINT_LIGHTS 5
 layout(set = 0, binding = 1) uniform light_data
 {
-	directional_light[MAX_DIR_LIGHT] dir_light;
+	directional_light[MAX_DIR_LIGHT] dir_lights;
+	point_light[MAX_POINT_LIGHTS] point_lights;
 };
 
 
@@ -76,9 +86,8 @@ vec3 fresnel_schlick_roughness(float cos_theta, vec3 f0, float roughness)
 }
 
 
-vec3 per_light_calc(directional_light light, material mat, vec3 normal, vec3 view_dir, vec3 f0)
+vec3 per_light_calc(vec3 light_dir, vec3 diffuse, material mat, vec3 normal, vec3 view_dir, vec3 f0)
 {
-	vec3 light_dir = light.direction.xyz;
 	vec3 H = normalize( view_dir + light_dir);
 	vec3 radiance = mat.albedo;
 
@@ -94,18 +103,19 @@ vec3 per_light_calc(directional_light light, material mat, vec3 normal, vec3 vie
 	
 	float ndotl = max(dot(normal, light_dir), 0.0);
 
-	return (kd * light.diffuse.xyz / PI + spec) * radiance * ndotl;
+	return (kd * diffuse.rgb / PI + spec) * radiance * ndotl;
 }
 
 
 void main() {
-
+	vec3 flat_normal = normalize(cross(dFdx(vec3(frag_pos)), dFdy(vec3(frag_pos))));
 	material mat; //temporary material
 	uint material_ind = index * 3;
 
 	mat.albedo = vec3(texture(material_textures[material_ind], uv));
+	
+	//normal map
 	vec3 rmao = vec3(texture(material_textures[material_ind+2], uv));
-
 
 	mat.roughness = rmao.r;
 	mat.metallic = rmao.g;
@@ -124,9 +134,15 @@ void main() {
 		vec3 f0 = vec3(0.04); 
 
 		vec3 light_output = vec3(0.0);
+
+		for(int i = 0;i < MAX_DIR_LIGHT; i++)
+		{
+			light_output += per_light_calc(vec3(point_lights[i].position) - frag_pos, point_lights[i].diffuse.rgb, mat, flat_normal, view_pos, f0);
+		}
+
 		for(int i = 0; i <  5; i++)
 		{
-			light_output += per_light_calc(dir_light[i], mat, normal, view_dir, f0);
+			light_output += per_light_calc(dir_lights[i].direction.xyz, dir_lights[i].diffuse.rgb, mat, flat_normal, view_dir, f0);
 		}
 		out_color = vec4(light_output, 1.0);
 	}

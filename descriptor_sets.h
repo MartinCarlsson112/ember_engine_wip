@@ -17,7 +17,8 @@ namespace em
 		void create_sets(const VkDevice& device, 
 			const std::vector<VkImage>& swapChainImages, 
 			const std::vector<buffer_object>& uniformBuffers, 
-			const std::vector<buffer_object>& lbos, 
+			const std::vector<buffer_object>& lbos,
+			const std::vector<buffer_object>& pose_buffer,
 			const VkImageView& shadow_map_view, 
 			const VkSampler& shadow_map_sampler,
 			const std::vector<em::texture>& textures);

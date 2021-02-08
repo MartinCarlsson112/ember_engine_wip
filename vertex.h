@@ -18,31 +18,25 @@ constexpr  VkVertexInputBindingDescription get_binding_desc()
 	return binding_desc;
 };
 
-struct vertex_attrib_desc
+
+inline void get_attrib_description(std::vector<VkVertexInputAttributeDescription>&  desc)
 {
-	constexpr vertex_attrib_desc() : position(), normal(), uv() {}
+	desc.push_back(VkVertexInputAttributeDescription());
+	desc.push_back(VkVertexInputAttributeDescription());
+	desc.push_back(VkVertexInputAttributeDescription());
 
-	VkVertexInputAttributeDescription position;
-	VkVertexInputAttributeDescription normal;
-	VkVertexInputAttributeDescription uv;
-};
+	desc[0].binding = 0;
+	desc[0].location = 0;
+	desc[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	desc[0].offset = 0;
 
-constexpr vertex_attrib_desc get_attrib_description()
-{
-	vertex_attrib_desc desc;
-	desc.position.binding = 0;
-	desc.position.location = 0;
-	desc.position.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-	desc.position.offset = 0;
+	desc[1].binding = 0;
+	desc[1].location = 1;
+	desc[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	desc[1].offset = offsetof(vertex, normal);
 
-	desc.normal.binding = 0;
-	desc.normal.location = 1;
-	desc.normal.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-	desc.normal.offset = offsetof(vertex, normal);
-
-	desc.uv.binding = 0;
-	desc.uv.location = 2;
-	desc.uv.format = VK_FORMAT_R32G32_SFLOAT;
-	desc.uv.offset = offsetof(vertex, uv);
-	return desc;
+	desc[2].binding = 0;
+	desc[2].location = 2;
+	desc[2].format = VK_FORMAT_R32G32_SFLOAT;
+	desc[2].offset = offsetof(vertex, uv);
 }

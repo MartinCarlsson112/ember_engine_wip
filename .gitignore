@@ -14,6 +14,8 @@
 *.lib
 *.exe
 *.obj
+/VTune Profiler Results/
+/GPUCache/
 
 
 # User-specific files (MonoDevelop/Xamarin Studio)

@@ -4,9 +4,11 @@
 #include "vulkan_utils.h"
 namespace em
 {
+
+
 	void descriptor_sets::create_layout(const VkDevice& device)
 	{
-		VkDescriptorSetLayoutBinding bindings[4] = {};
+		VkDescriptorSetLayoutBinding bindings[5] = {};
 		//camera data
 		bindings[0].binding = 0;
 		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -28,13 +30,22 @@ namespace em
 		bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 		bindings[2].pImmutableSamplers = nullptr;
 
-		//material array
+		//pose array
 		bindings[3].binding = 3;
-		bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		const int MAX_MATERIAL_TEXTURES = 32;
-		bindings[3].descriptorCount = MAX_MATERIAL_TEXTURES;
-		bindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		bindings[3].descriptorCount = 1;
+		bindings[3].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 		bindings[3].pImmutableSamplers = nullptr;
+
+		//material array
+		bindings[4].binding = 4;
+		bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		const int MAX_MATERIAL_TEXTURES = 32;
+		bindings[4].descriptorCount = MAX_MATERIAL_TEXTURES;
+		bindings[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		bindings[4].pImmutableSamplers = nullptr;
+
+
 
 
 		VkDescriptorSetLayoutCreateInfo layout_info = {};
@@ -47,7 +58,7 @@ namespace em
 
 	void descriptor_sets::create_pools(const VkDevice& device, const std::vector<VkImage>& swapChainImages)
 	{
-		VkDescriptorPoolSize pool_sizes[4];
+		VkDescriptorPoolSize pool_sizes[5];
 
 		pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		pool_sizes[0].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
@@ -55,8 +66,11 @@ namespace em
 		pool_sizes[1].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
 		pool_sizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		pool_sizes[2].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
-		pool_sizes[3].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		pool_sizes[3].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		pool_sizes[3].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
+		pool_sizes[4].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		pool_sizes[4].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
+
 
 		VkDescriptorPoolCreateInfo poolInfo = {};
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -70,6 +84,7 @@ namespace em
 		const std::vector<VkImage>& swapchain_images, 
 		const std::vector<buffer_object>& ubos, 
 		const std::vector<buffer_object>& lbos,
+		const std::vector<buffer_object>& pose_buffer,
 		const VkImageView& shadow_map_view,
 		const VkSampler& shadow_map_sampler,
 		const std::vector<em::texture>& textures)
@@ -110,7 +125,7 @@ namespace em
 
 		for (size_t i = 0; i < swapchain_images.size(); i++)
 		{
-			VkWriteDescriptorSet descriptor_write[4] = {};
+			VkWriteDescriptorSet descriptor_write[5] = {};
 
 			VkDescriptorBufferInfo cam_data = {};
 			cam_data.buffer = ubos[i].buffer;
@@ -145,13 +160,27 @@ namespace em
 			descriptor_write[2].descriptorCount = 1;
 			descriptor_write[2].pImageInfo = &shadow_map;
 
+			VkDescriptorBufferInfo pose_data = {};
+			pose_data.buffer = pose_buffer[i].buffer;
+			pose_data.offset = 0;
+			pose_data.range = sizeof(float4x4) * 120;
 			descriptor_write[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			descriptor_write[3].dstSet = sets[i];
 			descriptor_write[3].dstBinding = 3;
 			descriptor_write[3].dstArrayElement = 0;
-			descriptor_write[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			descriptor_write[3].descriptorCount = COUNT_OF(descriptor_image_infos);
-			descriptor_write[3].pImageInfo = descriptor_image_infos;
+			descriptor_write[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			descriptor_write[3].descriptorCount = 1;
+			descriptor_write[3].pBufferInfo = &pose_data;
+
+			descriptor_write[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptor_write[4].dstSet = sets[i];
+			descriptor_write[4].dstBinding = 4;
+			descriptor_write[4].dstArrayElement = 0;
+			descriptor_write[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			descriptor_write[4].descriptorCount = COUNT_OF(descriptor_image_infos);
+			descriptor_write[4].pImageInfo = descriptor_image_infos;
+
+	
 
 			vkUpdateDescriptorSets(device, COUNT_OF(descriptor_write), descriptor_write, 0, nullptr);
 		}

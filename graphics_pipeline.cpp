@@ -4,7 +4,13 @@
 
 namespace em
 {
-	void graphics_pipeline::create(const VkDevice& logical_device, const std::vector<shader>& shaders, const VkDescriptorSetLayout& descriptor_set_layout, const VkRenderPass& render_pass, const VkViewport& viewport, const VkExtent2D extents)
+	void graphics_pipeline::create(const VkDevice& logical_device, 
+		const std::vector<shader>& shaders, 
+		const VkDescriptorSetLayout& descriptor_set_layout, 
+		const VkRenderPass& render_pass, 
+		const VkViewport& viewport, 
+		const VkExtent2D extents,
+		const graphics_pipeline_settings& settings)
 	{
 		std::vector<VkPipelineShaderStageCreateInfo> stage_infos(shaders.size());
 		for (int i = 0; i < shaders.size(); i++)
@@ -15,19 +21,18 @@ namespace em
 			stage_infos[i].module = shaders[i].shader_module;
 		}
 
-		auto binding_description = get_binding_desc();
-		auto attribute_descriptions = get_attrib_description();
+		auto binding_description = settings.binding_desc;
+		auto attribute_descriptions = settings.attribute_desc;
 		VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
 		vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 		vertex_input_info.vertexBindingDescriptionCount = 1U;
-		vertex_input_info.vertexAttributeDescriptionCount = 3U;
-		vertex_input_info.pVertexAttributeDescriptions = (VkVertexInputAttributeDescription*)&attribute_descriptions;
+		vertex_input_info.vertexAttributeDescriptionCount = (uint32_t)attribute_descriptions.size();
+		vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions.data();
 		vertex_input_info.pVertexBindingDescriptions = &binding_description;
-
 
 		VkPipelineInputAssemblyStateCreateInfo input_assembly = {};
 		input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-		input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		input_assembly.topology = settings.primitives;
 		input_assembly.primitiveRestartEnable = VK_FALSE;
 
 		VkRect2D scissor = { };
@@ -47,8 +52,8 @@ namespace em
 		rasterizer.rasterizerDiscardEnable = VK_FALSE;
 		rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 		rasterizer.lineWidth = 1.0f;
-		rasterizer.cullMode = VK_CULL_MODE_NONE;
-		rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		rasterizer.cullMode = settings.cullmode;
+		rasterizer.frontFace = settings.winding;
 		rasterizer.depthBiasEnable = VK_FALSE;
 		rasterizer.depthBiasConstantFactor = 0.0f;
 		rasterizer.depthBiasClamp = 0.0f; 
@@ -57,7 +62,7 @@ namespace em
 		VkPipelineMultisampleStateCreateInfo multisampling = {};
 		multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 		multisampling.sampleShadingEnable = VK_FALSE;
-		multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+		multisampling.rasterizationSamples = settings.sample_count;
 		multisampling.minSampleShading = 1.0f; 
 		multisampling.pSampleMask = nullptr; 
 		multisampling.alphaToCoverageEnable = VK_FALSE; 

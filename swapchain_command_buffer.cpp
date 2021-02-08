@@ -21,7 +21,7 @@ namespace em
 	void swapchain_command_buffer::record_command_buffer(const uint32_t current_image, 
 		const std::vector<VkFramebuffer>& swapchain_framebuffers, const std::vector<mesh_batch>& batches,
 		const VkRenderPass& render_pass, const VkExtent2D& extents, 
-		const descriptor_sets& sets, const graphics_pipeline& graphics_pipeline)
+		const std::vector<descriptor_sets>& sets, const std::vector<graphics_pipeline>& graphics_pipelines)
 	{
 		VkRenderPassBeginInfo renderpass_info = {};
 		renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -45,17 +45,27 @@ namespace em
 
 		vkCmdBeginRenderPass(command_buffers[current_image], &renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
 
-		vkCmdBindPipeline(command_buffers[current_image], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline.pipeline);
-
 		VkDeviceSize offsets[] = { 0 };
 		for (uint32_t j = 0; j < batches.size(); j++)
 		{
+			auto pipeline = graphics_pipelines[batches[j].pipeline].pipeline;
+			auto pipeline_layout = graphics_pipelines[batches[j].pipeline].layout;
+
+			vkCmdBindPipeline(command_buffers[current_image], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+			
 			vkCmdBindVertexBuffers(command_buffers[current_image], 0, 1, &batches[j].vbo, offsets);
-			vkCmdBindDescriptorSets(command_buffers[current_image], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline.layout, 0, 1, &sets.sets[current_image], 0, nullptr);
+			
+			vkCmdBindDescriptorSets(command_buffers[current_image], 
+				VK_PIPELINE_BIND_POINT_GRAPHICS, 
+				pipeline_layout, 0, 1, 
+				&sets[batches[j].descriptor_set].sets[current_image], 
+				0, 
+				nullptr);
+
 			for (int k = 0; k < batches[j].count; k++)
 			{
-				vkCmdPushConstants(command_buffers[current_image], graphics_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float4x4), &batches[j].model[k]);
-				vkCmdPushConstants(command_buffers[current_image], graphics_pipeline.layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(float4x4), sizeof(uint32_t), &batches[j].texture_id);
+				vkCmdPushConstants(command_buffers[current_image], pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float4x4), &batches[j].model[k]);
+				vkCmdPushConstants(command_buffers[current_image], pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(float4x4), sizeof(uint32_t), &batches[j].material);
 				vkCmdDraw(command_buffers[current_image], static_cast<uint32_t>(batches[j].vertex_count), 1, 0, 0);
 			}
 		}

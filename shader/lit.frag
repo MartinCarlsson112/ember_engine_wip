@@ -108,7 +108,16 @@ vec3 per_light_calc(vec3 light_dir, vec3 diffuse, material mat, vec3 normal, vec
 
 
 void main() {
+	vec3 normal_to_use = normal;
 	vec3 flat_normal = normalize(cross(dFdx(vec3(frag_pos)), dFdy(vec3(frag_pos))));
+	if (dot (normal, flat_normal) > 0.0) {
+
+	}
+	else
+	{
+		normal_to_use = -normal;
+	}
+
 	material mat; //temporary material
 	uint material_ind = index * 3;
 
@@ -137,12 +146,12 @@ void main() {
 
 		for(int i = 0;i < MAX_DIR_LIGHT; i++)
 		{
-			light_output += per_light_calc(vec3(point_lights[i].position) - frag_pos, point_lights[i].diffuse.rgb, mat, flat_normal, view_pos, f0);
+			light_output += per_light_calc(vec3(point_lights[i].position) - frag_pos, point_lights[i].diffuse.rgb, mat, normal_to_use, view_pos, f0);
 		}
 
 		for(int i = 0; i <  5; i++)
 		{
-			light_output += per_light_calc(dir_lights[i].direction.xyz, dir_lights[i].diffuse.rgb, mat, flat_normal, view_dir, f0);
+			light_output += per_light_calc(dir_lights[i].direction.xyz, dir_lights[i].diffuse.rgb, mat, normal_to_use, view_dir, f0);
 		}
 		out_color = vec4(light_output, 1.0);
 	}

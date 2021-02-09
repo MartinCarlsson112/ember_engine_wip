@@ -99,6 +99,7 @@
     <ClInclude Include="animation.h" />
     <ClInclude Include="animation_system.h" />
     <ClInclude Include="app.h" />
+    <ClInclude Include="array_util.h" />
     <ClInclude Include="buffer_object.h" />
     <ClInclude Include="camera_system.h" />
     <ClInclude Include="collections.h" />

@@ -192,6 +192,9 @@
     <ClInclude Include="animation_system.h">
       <Filter>Header Files\systems</Filter>
     </ClInclude>
+    <ClInclude Include="array_util.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="app.cpp">

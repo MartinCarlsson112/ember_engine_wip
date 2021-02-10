@@ -13,7 +13,7 @@ namespace math
 	inline constexpr static float half_pi = pi / 2.0f;
 	inline constexpr static float d2r = pi / 180.0f;
 	inline constexpr static float r2d = 180.0f / pi;
-	inline constexpr static float epsilon = 0.00001f;
+	inline constexpr static float epsilon = 0.000001f;
 };
 
 
@@ -334,75 +334,6 @@ inline uint32_4 operator+(uint32_4 a, uint32_t b)
 	return uint32_4(a.x + b, a.y + b, a.z + b, a.w + b);
 }
 
-struct quaternion
-{
-	inline float& operator[](int i) { return (&x)[i]; }
-	union { 
-		struct { float x;  float y; float z; float w; }; 
-		struct { float3 vector; float scalar; };
-		float v[4]; 
-	};
-	inline constexpr quaternion() : x(0), y(0), z(0), w(1) {}
-	inline constexpr quaternion(float _x, float _y, float _z, float _w) : x(_x), y(_y), z(_z), w(_w) {}
-};
-
-inline constexpr quaternion operator+(const quaternion& a, const quaternion& b)
-{
-	return quaternion(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
-}
-
-inline constexpr quaternion operator-(const quaternion& a, const quaternion& b)
-{
-	return quaternion(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
-}
-
-inline constexpr quaternion operator*(const quaternion& a, const float b)
-{
-	return quaternion(a.x * b, a.y * b, a.z * b, a.w * b);
-}
-
-inline constexpr quaternion operator*(const quaternion& a, const quaternion& b)
-{
-	return quaternion(b.x * a.w + b.y * a.z - b.z * a.y + b.w * a.x, 
-		-b.x * a.z + b.y * a.w + b.z * a.x + b.w * a.y, 
-		b.x * a.y - b.y * a.x + b.z * a.w + b.w * a.z, 
-		-b.x * a.x - b.y * a.y - b.z * a.z + b.w * a.w);
-}
-
-inline constexpr quaternion operator-(const quaternion& a)
-{
-	return quaternion(-a.x, -a.y, -a.z, -a.w);
-}
-
-inline constexpr float3 operator*(const quaternion& q, const float3& v)
-{
-	float q_scalar = q.scalar;
-	float qv_dot_v = q.x * v.x + q.y * v.y + q.z * v.z;
-	float qv_dot_qv = q.x * q.x + q.y * q.y + q.z * q.z;
-	float3 qv_cross_v = float3(q.y * v.z - q.z * v.y, q.z * v.x - q.x * v.z, q.x * v.y - q.y * v.x);
-
-	return q.vector * 2.0f * qv_dot_v + v * (q_scalar * q_scalar - qv_dot_qv) + qv_cross_v * 2.0f * q_scalar;
-}
-
-
-inline bool operator==(const quaternion& left, const quaternion& right)
-{
-	return (fabsf(left.x - right.x) <= math::epsilon && fabsf(left.y - right.y) <= math::epsilon && fabsf(left.z - right.z) <= math::epsilon && fabsf(left.w - right.w) <= math::epsilon);
-}
-inline bool operator!=(const quaternion& left, const quaternion& right)
-{
-	return !(left == right);
-}
-
-struct transform
-{
-	float3 position;
-	quaternion rotation;
-	float3 scale;
-};
-
-
-
 namespace math
 {
 
@@ -415,33 +346,13 @@ namespace math
 		return a.x * b.x + a.y * b.y + a.z * b.z + a.w * a.z;
 	}
 
-	inline constexpr float dot(const quaternion& a, const quaternion& b)
-	{
-		return a.x * b.x + a.y * b.y + a.z * b.z + a.w * a.z;
-	}
 
 	inline float sqr_length(const float3& p)
 	{
 		return dot(p, p);
 	}
 
-	inline constexpr float sqr_length(const quaternion& q)
-	{
-		return dot(q, q);
-	}
-
-	inline float length(const quaternion& q)
-	{
-		float len = sqr_length(q);
-
-		if (len < epsilon)
-		{
-			return 0.0f;
-		}
-
-		return sqrtf(len);
-	}
-
+	
 	inline float length(const float3& p)
 	{
 		float len = sqr_length(p);
@@ -476,14 +387,117 @@ namespace math
 		}
 	}
 
-	inline float3 normalize(const float3& a) 
+	inline float3 normalize(const float3& a)
 	{
 		return a * (1.0f / sqrtf(dot(a, a)));
 	}
 
-	inline constexpr quaternion normalize(const quaternion& a)
+	
+
+	inline float3 cross(const float3& a, const float3& b)
 	{
-		float len = sqr_length(a);
+		return float3(
+			a.y * b.z - a.z * b.y,
+			a.z * b.x - a.x * b.z,
+			a.x * b.y - a.y * b.x
+		);
+	}
+
+}
+
+
+struct quaternion
+{
+	inline float& operator[](int i) { return (&x)[i]; }
+	union { 
+		struct { float x;  float y; float z; float w; }; 
+		struct { float3 vector; float scalar; };
+		float v[4]; 
+	};
+	inline constexpr quaternion() : x(0), y(0), z(0), w(1) {}
+	inline constexpr quaternion(float _x, float _y, float _z, float _w) : x(_x), y(_y), z(_z), w(_w) {}
+};
+
+inline constexpr quaternion operator+(const quaternion& a, const quaternion& b)
+{
+	return quaternion(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
+}
+
+inline constexpr quaternion operator-(const quaternion& a, const quaternion& b)
+{
+	return quaternion(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
+}
+
+inline constexpr quaternion operator*(const quaternion& a, const float b)
+{
+	return quaternion(a.x * b, a.y * b, a.z * b, a.w * b);
+}
+
+
+inline constexpr quaternion operator*(const quaternion& Q1, const quaternion& Q2) {
+	return quaternion(
+		Q2.x * Q1.w + Q2.y * Q1.z - Q2.z * Q1.y + Q2.w * Q1.x,
+		-Q2.x * Q1.z + Q2.y * Q1.w + Q2.z * Q1.x + Q2.w * Q1.y,
+		Q2.x * Q1.y - Q2.y * Q1.x + Q2.z * Q1.w + Q2.w * Q1.z,
+		-Q2.x * Q1.x - Q2.y * Q1.y - Q2.z * Q1.z + Q2.w * Q1.w
+	);
+}
+
+inline constexpr quaternion operator-(const quaternion& a)
+{
+	return quaternion(-a.x, -a.y, -a.z, -a.w);
+}
+
+inline constexpr float3 operator*(const quaternion& q, const float3& v)
+{
+	return q.vector * 2.0f * math::dot(q.vector, v) +
+		v * (q.scalar * q.scalar - math::dot(q.vector, q.vector)) +
+		math::cross(q.vector, v) * 2.0f * q.scalar;
+}
+
+
+inline bool operator==(const quaternion& left, const quaternion& right)
+{
+	return (fabsf(left.x - right.x) <= math::epsilon && fabsf(left.y - right.y) <= math::epsilon && fabsf(left.z - right.z) <= math::epsilon && fabsf(left.w - right.w) <= math::epsilon);
+}
+inline bool operator!=(const quaternion& left, const quaternion& right)
+{
+	return !(left == right);
+}
+
+struct transform
+{
+	transform() : position(0, 0,0), rotation(0, 0, 0, 1), scale(1,1,1) { }
+
+	float3 position;
+	quaternion rotation;
+	float3 scale;
+};
+
+namespace math
+{
+
+	inline constexpr float dot(const quaternion& a, const quaternion& b)
+	{
+		return a.x * b.x + a.y * b.y + a.z * b.z + a.w * a.z;
+	}inline constexpr float sqr_length(const quaternion& q)
+	{
+		return dot(q, q);
+	}
+
+	inline float length(const quaternion& q)
+	{
+		float len = sqr_length(q);
+
+		if (len < epsilon)
+		{
+			return 0.0f;
+		}
+
+		return sqrtf(len);
+	}inline constexpr quaternion normalize(const quaternion& a)
+	{
+		float len = a.x * a.x + a.y * a.y + a.z * a.z + a.w * a.w;
 		if (len < epsilon)
 		{
 			return quaternion();
@@ -491,12 +505,6 @@ namespace math
 
 		float s = 1.0f / sqrtf(len);
 		return quaternion(a.x * s, a.y * s, a.z * s, a.w * s);
-	}
-
-	inline float3 cross(const float3& a, const float3& b)
-	{
-		float3 res = float3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
-		return res;
 	}
 
 	inline float3 project(const float3& a, const float3& b)
@@ -548,10 +556,8 @@ namespace math
 
 	inline bool equals(const float3& a, const float3& b)
 	{
-		bool x = abs(a.x - b.x) < epsilon;
-		bool y = abs(a.y - b.y) < epsilon;
-		bool z = abs(a.z - b.z) < epsilon;
-		return x && y && z;
+		float3 diff(a - b);
+		return sqr_length(diff) < epsilon;
 	}
 
 	inline const float clamp(const float v, const float lo, const float hi)
@@ -594,15 +600,16 @@ namespace math
 	inline transform combine(const transform& a, const transform& b)
 	{
 		transform out;
+
 		out.scale = a.scale * b.scale;
 		out.rotation = b.rotation * a.rotation;
-		out.position = a.rotation * (a.scale * b.position);
-		out.position = a.position + out.position;
+
+		auto v = (a.scale * b.position);
+		float3 temp = a.rotation * v;
+		out.position = a.position + temp;
+
 		return out;
 	}
-
-
-
 
 	inline void to_float4x4(const transform& a, float4x4& out)
 	{
@@ -678,14 +685,19 @@ namespace math
 
 	inline quaternion inverse(const quaternion& q)
 	{
-		float len_sq = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
-		if (len_sq < epsilon)
-		{ 
+		float lenSq = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
+		if (lenSq < epsilon) {
 			return quaternion();
-		}   
+		}
+		float recip = 1.0f / lenSq;
 
-		float s = 1.0f / len_sq;   
-		return quaternion(-q.x * s, -q.y * s, -q.z * s, q.w * s);
+		// conjugate / norm
+		return quaternion(
+			-q.x * recip,
+			-q.y * recip,
+			-q.z * recip,
+			q.w * recip
+		);
 	}
 
 	inline transform inverse(const transform& t) {
@@ -694,43 +706,41 @@ namespace math
 		inv.scale.x = fabs(t.scale.x) < epsilon ? 0.0f : 1.0f / t.scale.x;
 		inv.scale.y = fabs(t.scale.y) < epsilon ? 0.0f : 1.0f / t.scale.y;
 		inv.scale.z = fabs(t.scale.z) < epsilon ? 0.0f : 1.0f / t.scale.z;
-		float3 invTrans = t.position * -1.0f;
-		inv.position = inv.rotation * (inv.scale * invTrans);
+		float3 inv_trans = t.position * -1.0f;
+		inv.position = inv.rotation * (inv.scale * inv_trans);
 		return inv;
 	}
 
 	inline quaternion from_to(const float3& from, const float3& to)
 	{
-		float3 normalized_from = normalize(from);
-		float3 normalized_to = normalize(to);
+		float3 f = normalize(from);
+		float3 t = normalize(to);
 
-		if (equals(normalized_from,normalized_to))
-		{
+		if (equals(f,t)) {
 			return quaternion();
 		}
-		//if the vectors are opposites, best orthogonal can be used to create quaternion
-		else if (equals(normalized_from, -normalized_to))
-		{
-			float3 orthogonal = float3(1, 0, 0);
-
-			if (fabsf(normalized_from.y) < fabsf(normalized_from.x))
-			{
-				orthogonal = float3(0, 1, 0);
+		else if (equals(f, t * -1.0f)) {
+			float3 ortho = float3(1, 0, 0);
+			if (fabsf(f.y) < fabsf(f.x)) {
+				ortho = float3(0, 1, 0);
+			}
+			if (fabsf(f.z) < fabs(f.y) && fabs(f.z) < fabsf(f.x)) {
+				ortho = float3(0, 0, 1);
 			}
 
-			if (fabsf(normalized_from.z) < fabsf(normalized_from.y) &&
-				fabsf(normalized_from.z) < fabsf(normalized_from.x))
-			{
-				orthogonal = float3(0, 0, 1);
-			}
-
-			float3 axis = normalize(cross(normalized_from, orthogonal));
+			float3 axis = normalize(cross(f, ortho));
 			return quaternion(axis.x, axis.y, axis.z, 0);
 		}
 
-		float3 half = normalize(normalized_from + normalized_to);
-		float3 axis = cross(normalized_from, half);
-		return quaternion(axis.x, axis.y, axis.z, dot(normalized_from, half));
+		float3 half = normalize(f + t);
+		float3 axis = cross(f, half);
+
+		return quaternion(
+			axis.x,
+			axis.y,
+			axis.z,
+			dot(f, half)
+		);
 	}
 
 	inline quaternion look_rotation(const float3& direction, const float3& up)
@@ -742,7 +752,11 @@ namespace math
 		quaternion world_to_object = from_to(float3(0, 0, 1), forward);
 		float3 object_up = world_to_object * float3(0, 1, 0);
 		quaternion u2u = from_to(object_up, normalized_up);
-		return normalize(world_to_object * u2u);
+
+		quaternion result = world_to_object * u2u;
+		
+
+		return normalize(result);
 	}
 
 
@@ -805,140 +819,86 @@ namespace math
 		result[14] = left[2] * right[12] + left[6] * right[13] + left[10] * right[14] + left[14] * right[15];
 		result[15] = left[3] * right[12] + left[7] * right[13] + left[11] * right[14] + left[15] * right[15];
 	}
-	
-	inline bool inverse_matrix(float4x4 const & m, float4x4 & inverse_result)
-	{
-		float4x4 inv;
-		float det;
-		int i;
+	inline void transpose(const float4x4& m, float4x4&  out) {
+		out = {m[0], m[4], m[8], m[12],
+		m[1], m[5], m[9], m[13], 
+		m[2], m[6], m[10], m[14], 
+		m[3], m[7], m[11], m[15], 
+		};
+	}
 
-		inv[0] = m[5] * m[10] * m[15] -
-			m[5] * m[11] * m[14] -
-			m[9] * m[6] * m[15] +
-			m[9] * m[7] * m[14] +
-			m[13] * m[6] * m[11] -
-			m[13] * m[7] * m[10];
 
-		inv[4] = -m[4] * m[10] * m[15] +
-			m[4] * m[11] * m[14] +
-			m[8] * m[6] * m[15] -
-			m[8] * m[7] * m[14] -
-			m[12] * m[6] * m[11] +
-			m[12] * m[7] * m[10];
+#define M4_3X3MINOR(c0, c1, c2, r0, r1, r2) \
+    (m[c0 * 4 + r0] * (m[c1 * 4 + r1] * m[c2 * 4 + r2] - m[c1 * 4 + r2] * m[c2 * 4 + r1]) - \
+     m[c1 * 4 + r0] * (m[c0 * 4 + r1] * m[c2 * 4 + r2] - m[c0 * 4 + r2] * m[c2 * 4 + r1]) + \
+     m[c2 * 4 + r0] * (m[c0 * 4 + r1] * m[c1 * 4 + r2] - m[c0 * 4 + r2] * m[c1 * 4 + r1]))
 
-		inv[8] = m[4] * m[9] * m[15] -
-			m[4] * m[11] * m[13] -
-			m[8] * m[5] * m[15] +
-			m[8] * m[7] * m[13] +
-			m[12] * m[5] * m[11] -
-			m[12] * m[7] * m[9];
+	inline float determinant(const float4x4& m) {
+		return  m[0] * M4_3X3MINOR(1, 2, 3, 1, 2, 3)
+			- m[4] * M4_3X3MINOR(0, 2, 3, 1, 2, 3)
+			+ m[8] * M4_3X3MINOR(0, 1, 3, 1, 2, 3)
+			- m[12] * M4_3X3MINOR(0, 1, 2, 1, 2, 3);
+	}
 
-		inv[12] = -m[4] * m[9] * m[14] +
-			m[4] * m[10] * m[13] +
-			m[8] * m[5] * m[14] -
-			m[8] * m[6] * m[13] -
-			m[12] * m[5] * m[10] +
-			m[12] * m[6] * m[9];
+	inline void adjugate(const float4x4& m, float4x4& out) {
+		// Cofactor(M[i, j]) = Minor(M[i, j]] * pow(-1, i + j)
+		float4x4 cofactor;
 
-		inv[1] = -m[1] * m[10] * m[15] +
-			m[1] * m[11] * m[14] +
-			m[9] * m[2] * m[15] -
-			m[9] * m[3] * m[14] -
-			m[13] * m[2] * m[11] +
-			m[13] * m[3] * m[10];
+		cofactor[0] = M4_3X3MINOR(1, 2, 3, 1, 2, 3);
+		cofactor[1] = -M4_3X3MINOR(1, 2, 3, 0, 2, 3);
+		cofactor[2] = M4_3X3MINOR(1, 2, 3, 0, 1, 3);
+		cofactor[3] = -M4_3X3MINOR(1, 2, 3, 0, 1, 2);
 
-		inv[5] = m[0] * m[10] * m[15] -
-			m[0] * m[11] * m[14] -
-			m[8] * m[2] * m[15] +
-			m[8] * m[3] * m[14] +
-			m[12] * m[2] * m[11] -
-			m[12] * m[3] * m[10];
+		cofactor[4] = -M4_3X3MINOR(0, 2, 3, 1, 2, 3);
+		cofactor[5] = M4_3X3MINOR(0, 2, 3, 0, 2, 3);
+		cofactor[6] = -M4_3X3MINOR(0, 2, 3, 0, 1, 3);
+		cofactor[7] = M4_3X3MINOR(0, 2, 3, 0, 1, 2);
 
-		inv[9] = -m[0] * m[9] * m[15] +
-			m[0] * m[11] * m[13] +
-			m[8] * m[1] * m[15] -
-			m[8] * m[3] * m[13] -
-			m[12] * m[1] * m[11] +
-			m[12] * m[3] * m[9];
+		cofactor[8] = M4_3X3MINOR(0, 1, 3, 1, 2, 3);
+		cofactor[9] = -M4_3X3MINOR(0, 1, 3, 0, 2, 3);
+		cofactor[10] = M4_3X3MINOR(0, 1, 3, 0, 1, 3);
+		cofactor[11] = -M4_3X3MINOR(0, 1, 3, 0, 1, 2);
 
-		inv[13] = m[0] * m[9] * m[14] -
-			m[0] * m[10] * m[13] -
-			m[8] * m[1] * m[14] +
-			m[8] * m[2] * m[13] +
-			m[12] * m[1] * m[10] -
-			m[12] * m[2] * m[9];
+		cofactor[12] = -M4_3X3MINOR(0, 1, 2, 1, 2, 3);
+		cofactor[13] = M4_3X3MINOR(0, 1, 2, 0, 2, 3);
+		cofactor[14] = -M4_3X3MINOR(0, 1, 2, 0, 1, 3);
+		cofactor[15] = M4_3X3MINOR(0, 1, 2, 0, 1, 2);
+		float4x4 transposed;
+		transpose(cofactor, transposed);
+		memcpy(out.data(), transposed.data(), 16 * sizeof(float));
+	}
 
-		inv[2] = m[1] * m[6] * m[15] -
-			m[1] * m[7] * m[14] -
-			m[5] * m[2] * m[15] +
-			m[5] * m[3] * m[14] +
-			m[13] * m[2] * m[7] -
-			m[13] * m[3] * m[6];
+	inline bool inverse_matrix(const float4x4& m, float4x4& out) {
+		float det = determinant(m);
 
-		inv[6] = -m[0] * m[6] * m[15] +
-			m[0] * m[7] * m[14] +
-			m[4] * m[2] * m[15] -
-			m[4] * m[3] * m[14] -
-			m[12] * m[2] * m[7] +
-			m[12] * m[3] * m[6];
-
-		inv[10] = m[0] * m[5] * m[15] -
-			m[0] * m[7] * m[13] -
-			m[4] * m[1] * m[15] +
-			m[4] * m[3] * m[13] +
-			m[12] * m[1] * m[7] -
-			m[12] * m[3] * m[5];
-
-		inv[14] = -m[0] * m[5] * m[14] +
-			m[0] * m[6] * m[13] +
-			m[4] * m[1] * m[14] -
-			m[4] * m[2] * m[13] -
-			m[12] * m[1] * m[6] +
-			m[12] * m[2] * m[5];
-
-		inv[3] = -m[1] * m[6] * m[11] +
-			m[1] * m[7] * m[10] +
-			m[5] * m[2] * m[11] -
-			m[5] * m[3] * m[10] -
-			m[9] * m[2] * m[7] +
-			m[9] * m[3] * m[6];
-
-		inv[7] = m[0] * m[6] * m[11] -
-			m[0] * m[7] * m[10] -
-			m[4] * m[2] * m[11] +
-			m[4] * m[3] * m[10] +
-			m[8] * m[2] * m[7] -
-			m[8] * m[3] * m[6];
-
-		inv[11] = -m[0] * m[5] * m[11] +
-			m[0] * m[7] * m[9] +
-			m[4] * m[1] * m[11] -
-			m[4] * m[3] * m[9] -
-			m[8] * m[1] * m[7] +
-			m[8] * m[3] * m[5];
-
-		inv[15] = m[0] * m[5] * m[10] -
-			m[0] * m[6] * m[9] -
-			m[4] * m[1] * m[10] +
-			m[4] * m[2] * m[9] +
-			m[8] * m[1] * m[6] -
-			m[8] * m[2] * m[5];
-
-		det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
-
-		if (det == 0)
-		{
+		if (det == 0.0f) { // Epsilon check would need to be REALLY small
 			return false;
 		}
-			
-		det = 1.0f / det;
+		float4x4 adj;
 
-		for (i = 0; i < 16; i++)
-		{
-			inverse_result[i] = inv[i] * det;
-		}
+		adjugate(m, adj);
+		
+		out[0] = adj[0] * 1.0f / det;
+		out[1] = adj[1] * 1.0f / det;
+		out[2] = adj[2] * 1.0f / det;
+		out[3] = adj[3] * 1.0f / det;
+		out[4] = adj[4] * 1.0f / det;
+		out[5] = adj[5] * 1.0f / det;
+		out[6] = adj[6] * 1.0f / det;
+		out[7] = adj[7] * 1.0f / det;
+		out[8] = adj[8] * 1.0f / det;
+		out[9] = adj[9] * 1.0f / det;
+		out[10] = adj[10] * 1.0f / det;
+		out[11] = adj[11] * 1.0f / det;
+		out[12] = adj[12] * 1.0f / det;
+		out[13] = adj[13] * 1.0f / det;
+		out[14] = adj[14] * 1.0f / det;
+		out[15] = adj[15] * 1.0f / det;
+
 		return true;
 	}
+
+
 
 	inline void rotation_matrix(const float angle, float3 const& axis, float4x4& output)
 	{
@@ -1021,17 +981,31 @@ namespace math
 		return look_rotation(forward, up);
 	}
 	
-	inline transform to_transform(const float4x4& matrix)
+	inline transform to_transform(const float4x4& m)
 	{
 		transform out;
-		out.position = float3(matrix[12], matrix[13], matrix[14]);
-		out.rotation = from_float4x4(matrix);
-		float4x4 rot_scale_mat = { matrix[0], matrix[1], matrix[2], 0, matrix[4], matrix[5], matrix[6], 0, matrix[8], matrix[9], matrix[10], 0, 0, 0, 0, 1 };
-		float4x4 inv_rot_mat;
-		to_float4x4(inverse(out.rotation), inv_rot_mat);
-		float4x4 scale_skew_mat;
-		mul(rot_scale_mat, inv_rot_mat, scale_skew_mat);
-		out.scale = float3(scale_skew_mat[0], scale_skew_mat[5], scale_skew_mat[10]);
+
+		out.position = float3(m[12], m[13], m[14]);
+		out.rotation = from_float4x4(m);
+
+		float4x4 rotScaleMat{
+			m[0], m[1], m[2], 0,
+			m[4], m[5], m[6], 0,
+			m[8], m[9], m[10], 0,
+			0, 0, 0, 1
+		};
+		float4x4 invRotMat;
+		to_float4x4(inverse(out.rotation), invRotMat);
+		float4x4 scaleSkewMat;
+		math::mul(rotScaleMat, invRotMat, scaleSkewMat);
+
+		out.scale = float3(
+			scaleSkewMat[0],
+			scaleSkewMat[5],
+			scaleSkewMat[10]
+		);
+
+
 		return out;
 	}
 
@@ -1095,6 +1069,6 @@ namespace math
 		}
 
 	};
-
 	inline std::vector<int> improved_noise::p;
 }
+

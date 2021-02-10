@@ -134,45 +134,45 @@ pose load_rest_pose(cgltf_data* data)
 
 pose load_bind_pose(cgltf_data* data)
 {
-	pose rest_pose = load_rest_pose(data);   
+	pose rest_pose = load_rest_pose(data);
 	size_t num_bones = rest_pose.size();
-	std::vector<transform> world_bind_pose(num_bones);  
+	std::vector<transform> world_bind_pose(num_bones);
 	for (size_t i = 0; i < num_bones; ++i)
 	{
 		world_bind_pose[i] = rest_pose.get_global_transform(i);
-
-		size_t num_skins = data->skins_count;
-		for (size_t i = 0; i < num_skins; ++i)
+	}
+	size_t num_skins = data->skins_count;
+	for (size_t i = 0; i < num_skins; ++i)
+	{
+		cgltf_skin* skin = &(data->skins[i]);
+		std::vector<float> inv_bind_accessor;
+		get_scalar_values(inv_bind_accessor, 16, *skin->inverse_bind_matrices);
+		size_t num_joints = skin->joints_count;
+		for (int j = 0; j < num_joints; ++j)
 		{
-			cgltf_skin* skin = &(data->skins[i]);
-			std::vector<float> inv_bind_accessor;
-			get_scalar_values(inv_bind_accessor, 16, *skin->inverse_bind_matrices);
-			size_t num_joints = skin->joints_count;
-			for (int j = 0; j < num_joints; ++j)
-			{
-				float* matrix = &(inv_bind_accessor[j * 16]);
+			float* matrix = &(inv_bind_accessor[j * 16]);
 
-				float4x4 inv_bind_matrix;
-				float4x4 bind_matrix;
-				memcpy(inv_bind_matrix.data(), matrix, 16 * sizeof(float));
+			float4x4 inv_bind_matrix;
+			float4x4 bind_matrix;
+			memcpy(inv_bind_matrix.data(), matrix, 16 * sizeof(float));
 
-				math::inverse_matrix(inv_bind_matrix, bind_matrix);
-				transform bind_transform = math::to_transform(bind_matrix);
+			math::inverse_matrix(inv_bind_matrix, bind_matrix);
+			transform bind_transform = math::to_transform(bind_matrix);
 
-				cgltf_node* jointNode = skin->joints[j];
-				int joint_index = get_node_index(jointNode, data->nodes, num_bones);
-				world_bind_pose[joint_index] = bind_transform;
-			}
+			cgltf_node* jointNode = skin->joints[j];
+			int joint_index = get_node_index(jointNode, data->nodes, num_bones);
+			world_bind_pose[joint_index] = bind_transform;
 		}
-	}		
+
+	}
 
 	pose bind_pose = rest_pose;
 	for (size_t i = 0; i < num_bones; ++i)
 	{
 		transform current = world_bind_pose[i];
 		int p = bind_pose.get_parent(i);
-		if (p >= 0) 
-		{ 
+		if (p >= 0)
+		{
 			//Bring into parent space            
 			transform parent = world_bind_pose[p];
 			current = math::combine(math::inverse(parent), current);
@@ -262,7 +262,7 @@ void track_from_channel(float3_track& out, const cgltf_animation_channel& channe
 	for (size_t i = 0; i < num_frames; ++i)
 	{
 		int baseIndex = i * (int)components;       
-		float3_frame frame = out[i];
+		float3_frame &frame = out[i];
 		int offset = 0;        
 		frame.t = time[i];        
 		for (int comp = 0; comp < 3; ++comp) 
@@ -309,7 +309,7 @@ void track_from_channel(quaternion_track& out, const cgltf_animation_channel& ch
 	for (size_t i = 0; i < num_frames; ++i)
 	{
 		int baseIndex = i * (int)components;
-		quaternion_frame frame = out[i];
+		quaternion_frame& frame = out[i];
 		int offset = 0;
 		frame.t = time[i];
 		for (int comp = 0; comp < 4; ++comp)

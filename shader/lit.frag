@@ -133,7 +133,7 @@ void main() {
 	ivec2 screen_size = textureSize(shadow_map, 0); 
 
 	vec2 shadow_uv = gl_FragCoord.xy / screen_size;
-	vec3 shadow =  vec3(texture(shadow_map, shadow_uv));
+	vec3 shadow = vec3(1.0);//  vec3(texture(shadow_map, shadow_uv));
 
 	vec3 view_dir = normalize(frag_pos - view_pos);
 	vec3 f0 = vec3(0.04); 

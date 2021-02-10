@@ -658,28 +658,46 @@ struct pose
 		joints[index] = t;
 	}
 
-	transform get_global_transform(size_t index) const
+	transform get_global_transform(size_t i) const
 	{
-		transform res = joints[index];
-
-		for (int i = parents[index]; i >= 0; i = parents[i])
+		transform result = joints[i];   
+		for (int p = parents[i]; p >= 0; p = parents[p]) 
 		{
-			res = math::combine(joints[i], res);
-		}
-
-		return res;
+			result = math::combine(joints[p], result);
+		}   
+		return result;
 	}
 	
 	void get_matrices(std::vector<float4x4>& res)
 	{
-		const size_t size = this->size();
-		if (res.size() != size)
-		{
+		int size = joints.size();
+		if ((int)res.size() != size) {
 			res.resize(size);
 		}
-		
-		for (size_t i = 0; i < size; ++i)
-		{
+
+		int i = 0;
+		for (; i < size; ++i) {
+			int parent = parents[i];
+			if (parent > i) {
+				break;
+			}
+
+			float4x4 global;
+			float4x4 global2;
+			math::to_float4x4(joints[i], global);
+			if (parent >= 0) {
+
+				math::mul(res[parent], global, global2);
+				res[i] = global2;
+			}
+			else
+			{
+				res[i] = global;
+			}
+	
+		}
+
+		for (; i < size; ++i) {
 			transform t = get_global_transform(i);
 			math::to_float4x4(t, res[i]);
 		}
@@ -820,14 +838,16 @@ struct rig
 
 	void update_inverse_bind_pose()
 	{
-		size_t size = bind_pose.size();  
-		inv_bind_pose.resize(size);  
-		for (size_t i = 0; i < size; ++i)
-		{
+		unsigned int size = bind_pose.size();
+		inv_bind_pose.resize(size);
+
+		for (unsigned int i = 0; i < size; ++i) {
 			transform world = bind_pose.get_global_transform(i);
-			math::to_float4x4(world, inv_bind_pose[i]);
-			math::inverse_matrix(inv_bind_pose[i], inv_bind_pose[i]);
+
+			// This is a bit safer and more numerically stable
+			math::to_float4x4(math::inverse(world), inv_bind_pose[i]);
 		}
+		
 	}
 
 	void set(const pose& rest, const pose& bind, const std::vector<std::string>& names)

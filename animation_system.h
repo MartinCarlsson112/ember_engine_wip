@@ -27,14 +27,13 @@ struct animation_system
 			for (auto i : *g)
 			{
 				auto& animation = animation_offset[i];
-				animation.time += dt;
-
-				pose p = rigs->operator[](animation.rig).bind_pose;
+				animation.time += dt * 0.1f;
+				pose p = rigs->operator[](animation.rig).rest_pose;
 				std::vector<float4x4> matrices;
 				clips->operator[](animation.animation_clip).sample(p, animation.time);
  				p.get_matrices(matrices);
 
-				std::vector<float4x4>& inv_bind_pose = rigs->operator[](0).inv_bind_pose;
+				std::vector<float4x4>& inv_bind_pose = rigs->operator[](animation.rig).inv_bind_pose;
 
 				poses.resize(matrices.size());
 				for (int j = 0; j < matrices.size(); j++)

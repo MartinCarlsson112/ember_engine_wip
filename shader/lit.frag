@@ -133,27 +133,21 @@ void main() {
 	ivec2 screen_size = textureSize(shadow_map, 0); 
 
 	vec2 shadow_uv = gl_FragCoord.xy / screen_size;
-	vec3 shadow = vec3(texture(shadow_map, shadow_uv));
-	if(shadow.x > 0.5)
+	vec3 shadow =  vec3(texture(shadow_map, shadow_uv));
+
+	vec3 view_dir = normalize(frag_pos - view_pos);
+	vec3 f0 = vec3(0.04); 
+
+	vec3 light_output = vec3(0.0);
+
+	for(int i = 0;i < MAX_DIR_LIGHT; i++)
 	{
-		out_color = vec4(0, 0, 0, 1.0);
-	}
-	else{
-		vec3 view_dir = normalize(frag_pos - view_pos);
-		vec3 f0 = vec3(0.04); 
-
-		vec3 light_output = vec3(0.0);
-
-		for(int i = 0;i < MAX_DIR_LIGHT; i++)
-		{
-			light_output += per_light_calc(vec3(point_lights[i].position) - frag_pos, point_lights[i].diffuse.rgb, mat, normal_to_use, view_pos, f0);
-		}
-
-		for(int i = 0; i <  5; i++)
-		{
-			light_output += per_light_calc(dir_lights[i].direction.xyz, dir_lights[i].diffuse.rgb, mat, normal_to_use, view_dir, f0);
-		}
-		out_color = vec4(light_output, 1.0);
+		light_output += per_light_calc(vec3(point_lights[i].position) - frag_pos, point_lights[i].diffuse.rgb, mat, normal_to_use, view_dir, f0);
 	}
 
+	for(int i = 0; i <  5; i++)
+	{
+		light_output += per_light_calc(dir_lights[i].direction.xyz, dir_lights[i].diffuse.rgb, mat, normal_to_use, view_dir, f0);
+	}
+	out_color = vec4(light_output * shadow, 1.0);
 }

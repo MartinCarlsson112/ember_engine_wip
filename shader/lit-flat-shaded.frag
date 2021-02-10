@@ -1,12 +1,15 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(location = 0) in vec4 color;
-layout(location = 1) in vec3 view_pos;
-layout(location = 2) in vec3 frag_pos;
+layout(location = 0) in vec3 normal;
+layout(location = 1) in vec2 uv;
+layout(location = 2) in vec3 view_pos;
+layout(location = 3) in vec3 frag_pos;
 
 layout(binding = 2) uniform sampler2D shadow_map; 
 
+#define MAX_TEXTURES 32
+layout(binding = 4) uniform sampler2D material_textures[MAX_TEXTURES];
 layout(location = 0) out vec4 out_color;
 struct directional_light
 {
@@ -19,6 +22,10 @@ struct point_light
 {
 	vec4 position;
 	vec4 diffuse;
+};
+
+layout(push_constant) uniform material_index {
+    layout(offset = 64) uint index;
 };
 
 #define MAX_DIR_LIGHT 5
@@ -122,35 +129,35 @@ vec3 per_light_calc(directional_light light, material mat, vec3 normal, vec3 vie
 void main() {
 	vec3 normal = normalize(cross(dFdx(vec3(frag_pos)), dFdy(vec3(frag_pos))));
 	material mat; //temporary material
-	mat.albedo = vec3(color);
-	mat.roughness = 0.7;
-	mat.metallic = 0.2;
-	mat.ao = 0.3;
+	uint material_ind = index * 3;
+
+	mat.albedo = vec3(texture(material_textures[material_ind], uv));
+	//normal map
+	vec3 rmao = vec3(texture(material_textures[material_ind+2], uv));
+
+	mat.roughness = rmao.r;
+	mat.metallic = rmao.g;
+	mat.ao = rmao.b;
+
 
 	ivec2 screen_size = textureSize(shadow_map, 0); 
 
 	vec2 uv = gl_FragCoord.xy / screen_size;
 	vec3 shadow = vec3(texture(shadow_map, uv));
 
-	if(shadow.x > 0.5)
+	vec3 view_dir = normalize(frag_pos - view_pos);
+	vec3 f0 = vec3(0.04); 
+
+	vec3 light_output = vec3(0.0);
+
+	for(int i = 0;i < MAX_DIR_LIGHT; i++)
 	{
-		out_color = vec4(0, 0, 0, 1.0);
-	}
-	else{
-		vec3 view_dir = normalize(frag_pos - view_pos);
-		vec3 f0 = vec3(0.04); 
-
-		vec3 light_output = vec3(0.0);
-
-		for(int i = 0; i < MAX_POINT_LIGHT; i++)
-		{
-			light_output += per_light_calc(vec3(point_lights[i].position) - frag_pos, vec3(point_lights[i].diffuse), mat, normal, view_dir, f0);
-		}
-		for(int i = 0; i <  5; i++)
-		{
-			light_output += per_light_calc(dir_light[i], mat, normal, view_dir, f0);
-		}
-		out_color = vec4(light_output, 1.0);
+		light_output += per_light_calc(vec3(point_lights[i].position) - frag_pos, point_lights[i].diffuse.rgb, mat, normal, view_dir, f0);
 	}
 
+	for(int i = 0; i <  5; i++)
+	{
+		light_output += per_light_calc(dir_light[i].direction.xyz, dir_light[i].diffuse.rgb, mat, normal, view_dir, f0);
+	}
+	out_color = vec4(light_output * shadow, 1.0);
 }

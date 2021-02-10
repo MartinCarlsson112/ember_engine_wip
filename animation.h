@@ -50,13 +50,13 @@ struct float3_track
 
 	float start_time() const
 	{
-		frames[0].t;
+		return frames[0].t;
 	}
 
 	float end_time() const
 	{
 		assert(frames.size() > 0);
-		frames[frames.size() - 1].t;
+		return frames[frames.size() - 1].t;
 	}
 
 	float3 sample(float t, bool loop)
@@ -91,7 +91,7 @@ struct float3_track
 				t += endTime - startTime;
 			}
 			t = t + startTime;
-			return t;
+			return (int)t;
 		}
 		else
 		{
@@ -249,13 +249,13 @@ struct quaternion_track
 
 	float start_time() const
 	{
-		frames[0].t;
+		return frames[0].t;
 	}
 
 	float end_time() const
 	{
 		assert(frames.size() > 0);
-		frames[frames.size() - 1].t;
+		return frames[frames.size() - 1].t;
 	}
 
 	quaternion sample(float t, bool loop)
@@ -290,7 +290,7 @@ struct quaternion_track
 				t += endTime - startTime;
 			}
 			t = t + startTime;
-			return t;
+			return (int)t;
 		}
 		else
 		{
@@ -813,7 +813,7 @@ struct clip
 struct rig
 {	
 	rig(){}
-	rig(const pose& rest, const pose& bind, std::vector<std::string>& names) : rest_pose(rest), bind_pose(bind), joint_names(names)
+	rig(pose& rest, pose& bind, std::vector<std::string>& names) : bind_pose(bind), rest_pose(rest), joint_names(names)
 	{ 
 		update_inverse_bind_pose(); 
 	}
@@ -832,26 +832,25 @@ struct rig
 
 	void set(const pose& rest, const pose& bind, const std::vector<std::string>& names)
 	{
-		rest_pose = rest;
 		bind_pose = bind;
+		rest_pose = rest;
 		joint_names = names;
 		update_inverse_bind_pose();
 	}
 
-	void add_joint(const transform& joint_transform_bind, const transform& joint_transform_rest, int parent_index, const std::string& name, const float4x4& inv_bind)
+	void add_joint(const transform& joint_transform_rest, const transform& joint_transform_bind, int parent_index, const std::string& name, const float4x4& inv_bind)
 	{
-		rest_pose.joints.push_back(joint_transform_rest);
-		rest_pose.parents.push_back(parent_index);
-
 		bind_pose.joints.push_back(joint_transform_bind);
 		bind_pose.parents.push_back(parent_index);
+		rest_pose.joints.push_back(joint_transform_bind);
+		rest_pose.parents.push_back(parent_index);
 
 		joint_names.push_back(name);
 		inv_bind_pose.push_back(inv_bind);
 	}
 
-	pose rest_pose;
 	pose bind_pose;
+	pose rest_pose;
 
 	std::vector<float4x4> inv_bind_pose;
 	std::vector<std::string> joint_names;

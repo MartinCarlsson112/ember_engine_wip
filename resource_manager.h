@@ -21,7 +21,7 @@ public:
 	skinned_mesh load_skinned_mesh(const char* file_path);
 	mesh load_mesh(const std::vector<skinned_vertex>& verts);
 
-	clip load_animation(const char* file_path, const rig& skeleton);
+	clip load_animation(const char* file_path);
 
 	em::texture load_texture(const char* file_Path);
 	em::shader load_shader(const char* file_path, em::shader_type);

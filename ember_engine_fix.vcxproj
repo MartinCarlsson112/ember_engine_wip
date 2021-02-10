@@ -102,9 +102,12 @@
     <ClInclude Include="array_util.h" />
     <ClInclude Include="buffer_object.h" />
     <ClInclude Include="camera_system.h" />
+    <ClInclude Include="cgltf.h" />
+    <ClInclude Include="cgltf_write.h" />
     <ClInclude Include="collections.h" />
     <ClInclude Include="collision.h" />
     <ClInclude Include="descriptor_set_settings.h" />
+    <ClInclude Include="gltf_loader.h" />
     <ClInclude Include="graphics_pipeline_settings.h" />
     <ClInclude Include="skinned_mesh.h" />
     <ClInclude Include="skinned_vertex.h" />
@@ -154,6 +157,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="app.cpp" />
+    <ClCompile Include="cgltf.c" />
+    <ClCompile Include="gltf_loader.cpp" />
     <ClCompile Include="swapchain_command_buffer.cpp" />
     <ClCompile Include="depth_object.cpp" />
     <ClCompile Include="descriptor_sets.cpp" />

@@ -195,6 +195,15 @@
     <ClInclude Include="array_util.h">
       <Filter>Header Files\engine</Filter>
     </ClInclude>
+    <ClInclude Include="cgltf.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="cgltf_write.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="gltf_loader.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="app.cpp">
@@ -259,6 +268,12 @@
     </ClCompile>
     <ClCompile Include="raytracing.cpp">
       <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="cgltf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="gltf_loader.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

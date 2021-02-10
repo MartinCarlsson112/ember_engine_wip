@@ -6,9 +6,12 @@
 struct light_system
 {
 	component_id_array<position, directional_light> comps;
+	component_id_array<position, point_light> p_lights_comps;
 	position* positions;
 	directional_light* lights;
+	point_light* p_lights;
 	view* light_view;
+	view* p_light_view;
 	light_buffer_object lbo;
 
 	float accumulate = 0.0f;
@@ -22,6 +25,7 @@ struct light_system
 	{
 		light_view = ecs->get_view(comps.arr, comps.size);
 		positions = ecs->get_component_array<position>();
+		p_lights = ecs->get_component_array<point_light>();
 		lights = ecs->get_component_array<directional_light>();
 		size_type j = 0;
 		size_t index = 0;
@@ -50,6 +54,26 @@ struct light_system
 				index++;
 			}
 		}
+
+		index = 0;
+		p_light_view = ecs->get_view(p_lights_comps.arr, p_lights_comps.size);
+
+		for (auto g : *p_light_view)
+		{
+			auto position_offset = positions + g->get_offset(component_id<position>);
+			auto light_os = g->get_offset(component_id<point_light>);
+			auto light_offset = p_lights + light_os;
+
+			for (auto i : *g)
+			{
+				auto& pos = position_offset[i];
+				auto& light = light_offset[i];
+				
+				lbo.point_lights[index] = point_light_data{ float4(pos.x, pos.y, pos.z, 1.0f), light.color };
+				index++;
+			}
+		}
+
 	}
 
 

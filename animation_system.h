@@ -29,17 +29,17 @@ struct animation_system
 				auto& animation = animation_offset[i];
 				animation.time += dt;
 
-				pose p = rigs->operator[](animation.rig).rest_pose;
-				animation.time = clips->operator[](animation.animation_clip).sample(p, animation.time);
-
+				pose p = rigs->operator[](animation.rig).bind_pose;
 				std::vector<float4x4> matrices;
+				clips->operator[](animation.animation_clip).sample(p, animation.time);
+ 				p.get_matrices(matrices);
 
-				p.get_matrices(matrices);
+				std::vector<float4x4>& inv_bind_pose = rigs->operator[](0).inv_bind_pose;
 
 				poses.resize(matrices.size());
 				for (int j = 0; j < matrices.size(); j++)
-				{
-					math::mul(matrices[i], rigs->operator[](0).inv_bind_pose[j], poses[j]);
+				{	
+					math::mul(matrices[j], inv_bind_pose[j], poses[j]);
 				}
 			}
 		}

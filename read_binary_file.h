@@ -13,10 +13,10 @@ inline std::vector<char> read_binary_file(const std::string& filename)
 	}
 	else
 	{
-		size_t fileSize = (size_t)file.tellg();
-		std::vector<char> buffer(fileSize);
+		size_t file_size = (size_t)file.tellg();
+		std::vector<char> buffer(file_size);
 		file.seekg(0);
-		file.read(buffer.data(), fileSize);
+		file.read(buffer.data(), file_size);
 		file.close();
 		return buffer;
 	}

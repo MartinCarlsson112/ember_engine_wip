@@ -48,7 +48,7 @@ uint32_t renderer::create_pipeline(const em::graphics_pipeline_settings& setting
 	graphics_pipeline_settings_storage.push_back(settings);
 	graphics_pipelines.push_back(em::graphics_pipeline());
 	graphics_pipelines[graphics_pipelines.size() - 1].create(device.logical_device, settings.shaders, descriptor_sets[settings.desc_layout].layout, render_pass.pass, viewport, swapchain.extent, settings);
-	return graphics_pipelines.size()-1;
+	return (uint32_t)graphics_pipelines.size()-1;
 }
 
 uint32_t renderer::create_descriptor_set(const em::descriptor_set_settings& settings)
@@ -58,7 +58,7 @@ uint32_t renderer::create_descriptor_set(const em::descriptor_set_settings& sett
 	descriptor_sets[descriptor_sets.size() - 1].create_pools(device.logical_device, swapchain.swapchain_images);
 	descriptor_sets[descriptor_sets.size() - 1].create_layout(device.logical_device);
 	descriptor_sets[descriptor_sets.size() - 1].create_sets(device.logical_device, swapchain.swapchain_images, ubos, lbos, pbo, shadow_map.image_view, shadow_map.sampler, settings.materials);
-	return descriptor_sets.size() - 1;
+	return (uint32_t)descriptor_sets.size() - 1;
 }
 
 void renderer::dispose_pipeline()
@@ -236,7 +236,7 @@ void renderer::update_uniform_buffers(const uint32_t current_image, const light_
 	memcpy(data, &light_data, sizeof(light_buffer_object));
 	vkUnmapMemory(device.logical_device, lbos[current_image].buffer_memory);
 
-	vkMapMemory(device.logical_device, pbo[current_image].buffer_memory, 0, sizeof(float4x4) * poses.size(), 0, &data);
+	vkMapMemory(device.logical_device, pbo[current_image].buffer_memory, 0, sizeof(float) * 16 * poses.size(), 0, &data);
 	memcpy(data, poses.data(), sizeof(float4x4) * poses.size());
 	vkUnmapMemory(device.logical_device, pbo[current_image].buffer_memory);
 
@@ -261,8 +261,6 @@ void renderer::manage_acceleration_structures(const std::vector<mesh_batch>& bat
 	if (blas.size() <= 0)
 	{
 		raytracing.create_blas(device, blas, batch);
-
-
 		raytracing.create_tlas(device, blas, tlas, batch);
 		raytracing.update_descriptor_sets(device, batch, tlas, ubos, lbos);
 	}

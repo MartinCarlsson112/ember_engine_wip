@@ -91,8 +91,8 @@ struct hermite
 
 struct float4
 {
-
 	float4() :x(0), y(0), z(0), w(0) {}
+	inline float& operator[](int i) { return (&x)[i]; }
 	float4(float3 a, float w) : x(a.x), y(a.y), z(a.z), w(w) {}
 	float4(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
 	float4(const float4& a) {
@@ -336,6 +336,7 @@ inline uint32_4 operator+(uint32_4 a, uint32_t b)
 
 struct quaternion
 {
+	inline float& operator[](int i) { return (&x)[i]; }
 	union { 
 		struct { float x;  float y; float z; float w; }; 
 		struct { float3 vector; float scalar; };
@@ -600,7 +601,7 @@ namespace math
 		return out;
 	}
 
-	
+
 
 
 	inline void to_float4x4(const transform& a, float4x4& out)
@@ -685,6 +686,17 @@ namespace math
 
 		float s = 1.0f / len_sq;   
 		return quaternion(-q.x * s, -q.y * s, -q.z * s, q.w * s);
+	}
+
+	inline transform inverse(const transform& t) {
+		transform inv;
+		inv.rotation = inverse(t.rotation);
+		inv.scale.x = fabs(t.scale.x) < epsilon ? 0.0f : 1.0f / t.scale.x;
+		inv.scale.y = fabs(t.scale.y) < epsilon ? 0.0f : 1.0f / t.scale.y;
+		inv.scale.z = fabs(t.scale.z) < epsilon ? 0.0f : 1.0f / t.scale.z;
+		float3 invTrans = t.position * -1.0f;
+		inv.position = inv.rotation * (inv.scale * invTrans);
+		return inv;
 	}
 
 	inline quaternion from_to(const float3& from, const float3& to)

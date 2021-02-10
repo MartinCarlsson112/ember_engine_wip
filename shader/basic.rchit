@@ -36,14 +36,50 @@ void main()
     //TODO: Soft shadows
     //TODO: multiple rays per lights
 
-
-	traceRayEXT(tlas, gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT, 0xFF, 1, 0, 1, origin, tmin, -normalize(vec3(lights.data[0].dir)), tmax, 2);
-    if(shadowed)
+    vec3 shadow_output = vec3(0, 0, 0);
+    float light_count = 0.0;
+    for(int i =0 ; i< 1; i++)
     {
-        hit_value = vec3(1.0, 1.0, 1.0);
+        if(lights.data[i].color.w != 0.0)
+        {
+	        traceRayEXT(tlas, gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT, 0xFF, 1, 0, 1, origin, tmin, -normalize(vec3(lights.data[i].dir)), tmax, 2);
+        }
+        if(!shadowed)
+        {
+            shadow_output += vec3(1.0, 1.0, 1.0);
+            shadowed = true;
+        }
+        else{
+               light_count+=1.0;
+        }
+    }
+ 
+//    for(int i =0 ; i< 5; i++)
+//    {
+//        if(lights.point_lights[i].color.w != 0.0)
+//        {
+//
+//
+//	        traceRayEXT(tlas, gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT, 0xFF, 1, 0, 1, origin, tmin, -normalize(origin - vec3(lights.point_lights[i].pos)), tmax, 2);
+//        }
+//        if(!shadowed)
+//        {
+//            shadow_output += vec3(1.0, 1.0, 1.0);
+//            shadowed = true;
+//        }
+//        else{
+//               light_count+=1.0;
+//        }
+//    }
+
+    if( light_count> 0)
+    {
+        hit_value = shadow_output / light_count;
     }
     else
     {
-        hit_value = vec3(0.0, 0.0, 0.0);
+        hit_value = vec3(1.0, 1.0, 1.0);
     }
+
+
 }

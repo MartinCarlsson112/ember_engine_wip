@@ -33,22 +33,10 @@ layout(push_constant) uniform indices {
 void main() {
 
     mat4 skin = mat4(1.0);
-    if(in_bones.x != -1)
-    {
-        skin = pose[in_bones.x] * in_weights.x;
-    }
-    if(in_bones.y != -1)
-    {
-       skin += pose[in_bones.y] * in_weights.y;
-    }
-    if(in_bones.z != -1)
-    {
-      skin += pose[in_bones.z] * in_weights.z;
-    }
-    if(in_bones.w != -1)
-    {
-        skin += pose[in_bones.w] * in_weights.w;
-    }
+    skin = pose[in_bones.x] * in_weights.x;
+    skin += pose[in_bones.y] * in_weights.y;
+    skin += pose[in_bones.z] * in_weights.z;
+    skin += pose[in_bones.w] * in_weights.w;
 
     view_pos = vec3(cam_pos);
     normal =  -vec3(in_normal) * mat3(skin) * mat3(transpose(inverse(model)));

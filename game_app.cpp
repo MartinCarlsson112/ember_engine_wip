@@ -36,22 +36,12 @@ void game_app::initialize()
 	mesh cube_mesh;
 
 
-	skinned_mesh goblin = resources.load_skinned_mesh("assets/crimcrox_hair_and_boots.fbx");
-	clip goblin_clip = resources.load_animation("assets/crimcrox_animations.fbx", goblin._rig);
+	skinned_mesh goblin = resources.load_skinned_mesh("assets/crimcrox.glb");
+	clip goblin_clip = resources.load_animation("assets/crimcrox.glb");
 
-	auto p = goblin._rig.bind_pose;
-	goblin_clip.sample(p, 0.0f);
-
-	std::vector<float4x4> mat;
-	p.get_matrices(mat);
-	for (int i = 0; i < p.size(); i++)
-	{
-		float4x4 result;
-		math::mul(mat[i], goblin._rig.inv_bind_pose[i], result);
-	}
 
 	auto mesh_load_future = std::async(std::launch::async, [this, &bunny_mesh, &teapot_mesh, &cube_mesh]() {
-		bunny_mesh = resources.load_mesh("assets/bunny.fbx");
+		bunny_mesh = resources.load_mesh("assets/hana.fbx");
 		teapot_mesh = resources.load_mesh("assets/teapot.fbx");
 		cube_mesh = resources.load_mesh("assets/cube.fbx");
 	});
@@ -116,13 +106,29 @@ void game_app::initialize()
 	}
 
 	archetype<position, directional_light> light_components;
+
+	archetype<position, point_light> p_light_components;
 	archetype<position, renderable> renderable_components;
 	archetype<position, renderable, animation> animation_components;
-	auto e = ecs.create_entity(light_components.descriptor(), 5);
-	auto& lightcomp=  ecs.get_component<directional_light>(e);
+	auto light = ecs.create_entity(light_components.descriptor(), 5);
+	auto& lightcomp = ecs.get_component<directional_light>(light);
 
 	lightcomp.color = float4(2.5f, 2.5f, 2.5f, 1.0f);
 	lightcomp.direction = float4(0, -0.8f, 0.3f, 1.0f);
+
+	for (int i = 0; i < 5; i++)
+	{
+		auto p_light = ecs.create_entity(p_light_components.descriptor(), 5);
+		auto& p_light_comp = ecs.get_component<point_light>(p_light);
+		p_light_comp.color = float4(1.0f, 0.3f, 0.6f, 1.0f);
+
+		auto& p_light_pos = ecs.get_component<position>(p_light);
+		p_light_pos.x = i * 1.5f;
+		p_light_pos.y = 3; 
+		p_light_pos.z = 0;
+	}
+	
+
 
 	em::polygenerator::generate(storage, resources);
 	mesh_load_future.get();
@@ -137,12 +143,15 @@ void game_app::initialize()
 	render.create_swapchain();
 	uint32_t skinned_mesh_desc_index = render.create_descriptor_set(skinned_mesh_descriptor);
 	uint32_t static_mesh_desc_index = render.create_descriptor_set(static_mesh_descriptor);
+	uint32_t flag_static_mesh_desc_index = render.create_descriptor_set(static_mesh_descriptor);
+
 
 	em::graphics_pipeline_settings static_mesh_pipeline;
 	em::graphics_pipeline_settings skinned_mesh_pipeline;
+	em::graphics_pipeline_settings flat_static_mesh_pipeline;
 
 	get_attrib_description(static_mesh_pipeline.attribute_desc);
-	static_mesh_pipeline.cullmode = VK_CULL_MODE_BACK_BIT;
+	static_mesh_pipeline.cullmode = VK_CULL_MODE_NONE;
 	static_mesh_pipeline.binding_desc = get_binding_desc();
 	static_mesh_pipeline.sample_count = VK_SAMPLE_COUNT_1_BIT;
 	static_mesh_pipeline.desc_layout = static_mesh_desc_index;
@@ -153,8 +162,22 @@ void game_app::initialize()
 
 	uint32_t static_mesh_pipeline_index = render.create_pipeline(static_mesh_pipeline);
 
+
+	get_attrib_description(flat_static_mesh_pipeline.attribute_desc);
+	flat_static_mesh_pipeline.cullmode = VK_CULL_MODE_NONE;
+	flat_static_mesh_pipeline.binding_desc = get_binding_desc();
+	flat_static_mesh_pipeline.sample_count = VK_SAMPLE_COUNT_1_BIT;
+	flat_static_mesh_pipeline.desc_layout = flag_static_mesh_desc_index;
+	flat_static_mesh_pipeline.primitives = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	flat_static_mesh_pipeline.winding = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	flat_static_mesh_pipeline.shaders.push_back(resources.load_shader("shader/lit.vert.spv", em::shader_type::VK_SHADER_STAGE_VERTEX_BIT));
+	flat_static_mesh_pipeline.shaders.push_back(resources.load_shader("shader/lit-flat-shaded.frag.spv", em::shader_type::VK_SHADER_STAGE_FRAGMENT_BIT));
+
+	uint32_t flat_static_mesh_pipeline_index = render.create_pipeline(flat_static_mesh_pipeline);
+
+
 	skinned_vertex_get_attrib_description(skinned_mesh_pipeline.attribute_desc);
-	skinned_mesh_pipeline.cullmode = VK_CULL_MODE_BACK_BIT;
+	skinned_mesh_pipeline.cullmode = VK_CULL_MODE_NONE;
 	skinned_mesh_pipeline.binding_desc = skinned_vertex_get_binding_desc();
 	skinned_mesh_pipeline.sample_count = VK_SAMPLE_COUNT_1_BIT;
 	skinned_mesh_pipeline.desc_layout = skinned_mesh_desc_index;
@@ -166,14 +189,14 @@ void game_app::initialize()
 	uint32_t skinned_mesh_pipeline_index = render.create_pipeline(skinned_mesh_pipeline);
 
 	auto voxel_mesh = resources.load_mesh("voxels");
-	e =  ecs.create_entity(renderable_components.descriptor(),  50);
+	auto e =  ecs.create_entity(renderable_components.descriptor(),  50);
 	auto& rend = ecs.get_component<renderable>(e);
 	rend.vbo = voxel_mesh.vbo.buffer;
 	rend.vert_count = voxel_mesh.vertex_count;
 	rend.material = rock_material;
 	rend.vertex_stride = sizeof(vertex);
-	rend.pipeline = static_mesh_pipeline_index;
-	rend.desc = static_mesh_desc_index;
+	rend.pipeline = flat_static_mesh_pipeline_index;
+	rend.desc = flag_static_mesh_desc_index;
 
 	e = ecs.create_entity(animation_components.descriptor(), 1);
 	auto& rend5 = ecs.get_component<renderable>(e);
@@ -185,64 +208,63 @@ void game_app::initialize()
 	rend5.desc = skinned_mesh_desc_index;
 
 	auto& anim = ecs.get_component<animation>(e);
-	anim.animation_clip = 0;
+	anim.animation_clip = 1;
 	anim.rig = 0;
 
-
 	auto& p5 = ecs.get_component<position>(e);
-	p5.x = 5;
-	p5.z = 5;
-	p5.y = 5;
+	p5.x = 0;
+	p5.z = 0;
+	p5.y = 0;
 
 
-	//for (int i = 0; i < 10; i++)
-	//{
-	//	auto e2 = ecs.create_entity(renderable_components.descriptor());
-	//	auto& rend3 = ecs.get_component<renderable>(e2);
-	//	rend3.vbo = bunny_mesh.vbo.buffer;
-	//	rend3.vert_count = bunny_mesh.vertex_count;
-	//	rend3.material = rock_material;
-	//	rend3.vertex_stride = sizeof(vertex);
-	//	rend3.pipeline = static_mesh_pipeline_index;
-	//	rend3.desc = static_mesh_desc_index;
-	//	auto& pos2 = ecs.get_component<position>(e2);
-	//	pos2.x = (float)(i / 5);
-	//	pos2.y = (float)(i % 5);
-	//	pos2.z = (float)5;
-	//}
+	for (int i = 0; i < 10; i++)
+	{
+		auto e2 = ecs.create_entity(renderable_components.descriptor());
+		auto& rend3 = ecs.get_component<renderable>(e2);
+		rend3.vbo = bunny_mesh.vbo.buffer;
+		rend3.vert_count = bunny_mesh.vertex_count;
+		rend3.material = rock_material;
+		rend3.vertex_stride = sizeof(vertex);
+		rend3.pipeline = static_mesh_pipeline_index;
+		rend3.desc = static_mesh_desc_index;
+		auto& pos2 = ecs.get_component<position>(e2);
+		pos2.x = (float)(i / 5);
+		pos2.y = (float)(i % 5);
+		pos2.z = (float)5;
+	}
 
-	//for (int i = 0; i < 10; i++)
-	//{
-	//	auto e2 = ecs.create_entity(renderable_components.descriptor());
-	//	auto& rend3 = ecs.get_component<renderable>(e2);
-	//	rend3.vbo = teapot_mesh.vbo.buffer;
-	//	rend3.vert_count = teapot_mesh.vertex_count;
-	//	rend3.material = rock_material;
-	//	rend3.pipeline = static_mesh_pipeline_index;
-	//	rend3.desc = static_mesh_desc_index;
-	//	rend3.vertex_stride = sizeof(vertex);
-	//	auto& pos2 = ecs.get_component<position>(e2);
-	//	pos2.x = (float)(i / 5) * 10.0f;
-	//	pos2.y = (float)(i % 5) * 10.0f;
-	//	pos2.z = (float)10;
-	//}
+	for (int i = 0; i < 10; i++)
+	{
+		auto e2 = ecs.create_entity(renderable_components.descriptor());
+		auto& rend3 = ecs.get_component<renderable>(e2);
+		rend3.vbo = teapot_mesh.vbo.buffer;
+		rend3.vert_count = teapot_mesh.vertex_count;
+		rend3.material = rock_material;
+		rend3.pipeline = static_mesh_pipeline_index;
+		rend3.desc = static_mesh_desc_index;
+		rend3.vertex_stride = sizeof(vertex);
+		auto& pos2 = ecs.get_component<position>(e2);
+		pos2.x = (float)(i / 5) * 10.0f;
+		pos2.y = (float)(i % 5) * 10.0f;
+		pos2.z = (float)10;
+	}
 
-	//for (int i = 0; i < 10; i++)
-	//{
-	//	auto cube = ecs.create_entity(renderable_components.descriptor());
-	//	auto& rend3 = ecs.get_component<renderable>(cube);
-	//	rend3.vbo = cube_mesh.vbo.buffer;
-	//	rend3.vert_count = cube_mesh.vertex_count;
-	//	rend3.material = rock_material;
-	//	rend3.vertex_stride = sizeof(vertex);
-	//	rend3.pipeline = static_mesh_pipeline_index;
-	//	rend3.desc = static_mesh_desc_index;
+	for (int i = 0; i < 10; i++)
+	{
+		auto cube = ecs.create_entity(renderable_components.descriptor());
+		auto& rend3 = ecs.get_component<renderable>(cube);
+		rend3.vbo = cube_mesh.vbo.buffer;
+		rend3.vert_count = cube_mesh.vertex_count;
+		rend3.material = rock_material;
+		rend3.vertex_stride = sizeof(vertex);
+		rend3.pipeline = static_mesh_pipeline_index;
+		rend3.desc = static_mesh_desc_index;
 
-	//	auto& pos2 = ecs.get_component<position>(cube);
-	//	pos2.x = 3 + (i / 5) * 0.25f;
-	//	pos2.y = -3 + (i % 5) * 0.25f;
-	//	pos2.z = (float)i;
-	//}
+		auto& pos2 = ecs.get_component<position>(cube);
+		pos2.x = 3 + (i / 5) * 0.25f;
+		pos2.y = -3 + (i % 5) * 0.25f;
+		pos2.z = (float)i;
+	}
 
 
 	window_size = int2(wm.wr.right, wm.wr.bottom);

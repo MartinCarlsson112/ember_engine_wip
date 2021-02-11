@@ -159,5 +159,5 @@ void main() {
 	{
 		light_output += per_light_calc(dir_light[i].direction.xyz, dir_light[i].diffuse.rgb, mat, normal, view_dir, f0);
 	}
-	out_color = vec4(light_output * shadow, 1.0);
+	out_color = vec4(light_output, 1.0);
 }

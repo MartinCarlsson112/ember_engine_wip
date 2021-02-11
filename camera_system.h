@@ -18,7 +18,7 @@ struct camera_system
 	float3 camera_right = float3(1, 0, 0);
 	const float3 WORLD_UP = float3(0, 1, 0);
 
-	float fly_speed = .2f;
+	float fly_speed = .5f;
 	float turn_speed = 1.0f;
 
 	void update_vp()

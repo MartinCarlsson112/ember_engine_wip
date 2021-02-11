@@ -200,7 +200,20 @@ inline float2 operator-(float2 a)
 
 
 using float4x4 = std::array<float, 16>;
+#define M4D(aRow, bCol) \
+    a[0 * 4 + aRow] * b[bCol * 4 + 0] + \
+    a[1 * 4 + aRow] * b[bCol * 4 + 1] + \
+    a[2 * 4 + aRow] * b[bCol * 4 + 2] + \
+    a[3 * 4 + aRow] * b[bCol * 4 + 3]
 
+inline float4x4 operator*(const float4x4& a, const float4x4& b) {
+	return float4x4{
+		M4D(0, 0), M4D(1, 0), M4D(2, 0), M4D(3, 0), // Column 0
+		M4D(0, 1), M4D(1, 1), M4D(2, 1), M4D(3, 1), // Column 1
+		M4D(0, 2), M4D(1, 2), M4D(2, 2), M4D(3, 2), // Column 2
+		M4D(0, 3), M4D(1, 3), M4D(2, 3), M4D(3, 3)  // Column 3
+	};
+}
 struct int2
 {
 	inline constexpr int2() : x(0), y(0) {}
@@ -878,22 +891,24 @@ namespace math
 
 		adjugate(m, adj);
 		
-		out[0] = adj[0] * 1.0f / det;
-		out[1] = adj[1] * 1.0f / det;
-		out[2] = adj[2] * 1.0f / det;
-		out[3] = adj[3] * 1.0f / det;
-		out[4] = adj[4] * 1.0f / det;
-		out[5] = adj[5] * 1.0f / det;
-		out[6] = adj[6] * 1.0f / det;
-		out[7] = adj[7] * 1.0f / det;
-		out[8] = adj[8] * 1.0f / det;
-		out[9] = adj[9] * 1.0f / det;
-		out[10] = adj[10] * 1.0f / det;
-		out[11] = adj[11] * 1.0f / det;
-		out[12] = adj[12] * 1.0f / det;
-		out[13] = adj[13] * 1.0f / det;
-		out[14] = adj[14] * 1.0f / det;
-		out[15] = adj[15] * 1.0f / det;
+		float d = (1.0f / det);
+
+		out[0] = adj[0] *d;
+		out[1] = adj[1] *d;
+		out[2] = adj[2] *d;
+		out[3] = adj[3] *d;
+		out[4] = adj[4] *d;
+		out[5] = adj[5] *d;
+		out[6] = adj[6] *d;
+		out[7] = adj[7] *d;
+		out[8] = adj[8] *d;
+		out[9] = adj[9] *d;
+		out[10] = adj[10] * d;
+		out[11] = adj[11] * d;
+		out[12] = adj[12] * d;
+		out[13] = adj[13] * d;
+		out[14] = adj[14] * d;
+		out[15] = adj[15] * d;
 
 		return true;
 	}

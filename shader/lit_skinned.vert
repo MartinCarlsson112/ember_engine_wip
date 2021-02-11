@@ -32,16 +32,14 @@ layout(push_constant) uniform indices {
 
 void main() {
 
-    mat4 skin = mat4(1.0);
-    skin += pose[in_bones.x] * in_weights.x;
-    skin += pose[in_bones.y] * in_weights.y;
-    skin += pose[in_bones.z] * in_weights.z;
-    skin += pose[in_bones.w] * in_weights.w;
-
+    mat4 skin = pose[in_bones.x] * in_weights.x; +  pose[in_bones.y] * in_weights.y +  pose[in_bones.z] * in_weights.z + pose[in_bones.w] * in_weights.w;
+    vec4 p = vec4(in_pos.x, in_pos.y, in_pos.z, 1.0);
     view_pos = vec3(cam_pos);
-    normal =  mat3(transpose(inverse(model)))* mat3(skin) * vec3(in_normal);
+    normal =  mat3(model)* mat3(skin) * vec3(in_normal);
 
     uv = in_uv;
-    frag_pos = vec3(model * skin * in_pos);
-    gl_Position = perspective * view * model* skin * vec4(in_pos.xyz, 1.0);
+    frag_pos = vec3(model * skin * p);
+
+
+    gl_Position = perspective * view * model* skin * p;
 }

@@ -180,7 +180,7 @@ protected:
 			return float3();
 		}
 
-		float time = (track_time - this_time) / frame_delta;
+		float time = (track_time - frames[this_frame].t) / frame_delta;
 
 		float3 start = frames[this_frame].value;
 		float3 end = frames[next_frame].value;
@@ -282,31 +282,32 @@ struct quaternion_track
 		}
 
 		if (loop) {
-			float startTime = frames[0].t;
-			float endTime = frames[size_t(size)- 1].t;
-			t = fmodf(t - startTime, endTime - startTime);
-			if (t < 0.0f)
-			{
-				t += endTime - startTime;
+			float start_time = frames[0].t;
+			float end_time = frames[size - 1].t;
+			float duration = end_time - start_time;
+
+			if (duration < 0.0f) {
+				duration = fabsf(duration);
 			}
-			t = t + startTime;
-			return (int)t;
+
+			t = fmodf(t - start_time, end_time - start_time);
+			if (t < 0.0f) {
+				t += end_time - start_time;
+			}
+			t = t + start_time;
 		}
-		else
-		{
+		else {
 			if (t <= frames[0].t) {
 				return 0;
 			}
-			if (t >= frames[size_t(size) - 2].t) {
-				return size - 2;
+			if (t >= frames[size - 2].t) {
+				return (int)size - 2;
 			}
+		}
 
-			for (int i = (int)size - 1; i >= 0; --i)
-			{
-				if (t >= frames[i].t)
-				{
-					return i;
-				}
+		for (int i = (int)size - 1; i >= 0; --i) {
+			if (t >= frames[i].t) {
+				return i;
 			}
 		}
 		return -1;
@@ -385,7 +386,7 @@ protected:
 			return quaternion();
 		}
 
-		float time = (track_time - this_time) / frame_delta;
+		float time = (track_time - frames[this_frame].t) / frame_delta;
 		quaternion start = frames[this_frame].value;
 		quaternion end = frames[next_frame].value;
 
@@ -683,12 +684,10 @@ struct pose
 			}
 
 			float4x4 global;
-			float4x4 global2;
 			math::to_float4x4(joints[i], global);
 			if (parent >= 0) {
 
-				math::mul(res[parent], global, global2);
-				res[i] = global2;
+				res[i] = res[parent] * global;
 			}
 			else
 			{
@@ -843,8 +842,6 @@ struct rig
 
 		for (unsigned int i = 0; i < size; ++i) {
 			transform world = bind_pose.get_global_transform(i);
-
-			// This is a bit safer and more numerically stable
 			math::to_float4x4(math::inverse(world), inv_bind_pose[i]);
 		}
 		

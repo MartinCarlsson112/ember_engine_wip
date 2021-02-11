@@ -182,6 +182,8 @@ pose load_bind_pose(cgltf_data* data)
 	return bind_pose;
 }
 
+
+
 transform get_local_transform(cgltf_node& n)
 {
 	transform result;    
@@ -192,11 +194,11 @@ transform get_local_transform(cgltf_node& n)
 		{
 			mat[i] = n.matrix[i];
 		}
-		result = math::to_transform(mat); 
+		result = math::to_transform(mat);
 	}    
 	if (n.has_translation) 
 	{
-		result.position = float3(n.translation[0],n.translation[1], n.translation[2]);
+		result.position = float3(n.translation[0], n.translation[1], n.translation[2]);
 	}    
 	if (n.has_rotation) 
 	{
@@ -254,7 +256,7 @@ void track_from_channel(float3_track& out, const cgltf_animation_channel& channe
 	std::vector<float>val;
 
 	get_scalar_values(time, 1, *sampler.input);
-	get_scalar_values(val, 3, *sampler.output);    
+	get_scalar_values(val, 3, *sampler.output); 
 
 	size_t num_frames = sampler.input->count;
 	size_t components = val.size() / time.size();
